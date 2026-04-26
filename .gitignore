@@ -1,1 +1,54 @@
+#--------------------#
+#   Env variables    #
+#--------------------#
+.env
+
+#--------------------#
+#        Data        #
+#--------------------#
 data/
+
+#--------------------#
+# OS generated files #
+#--------------------#
+.DS_Store
+__MACOSX
+
+#--------------------#
+#  Jupiter Notebook  #
+#--------------------#
+notebooks/
+.pytest_cache
+__pycache__
+*checkpoint.ipynb
+*.ipynb_checkpoints
+*.ipynb
+.python-version
+
+#--------------------#
+#       IMAGES       #
+#--------------------#
+*.jpg
+*.jpeg
+
+#--------------------#
+#        IDE         #
+#--------------------#
+*.vscode
+
+#--------------------#
+#       Models       #
+#--------------------#
+**/model/
+
+#--------------------#
+#      inteliJ       #
+#--------------------#
+.idea
+*.gz
+*PKG-INFO
+*.egg-info
+*.csv
+*.zip
+mlruns
+*.sqlite
