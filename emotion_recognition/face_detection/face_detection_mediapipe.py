@@ -7,11 +7,14 @@ import cv2
 import mediapipe as mp
 
 class FaceDetector():
-    def __init__(self, min_detect_conf=0.5):
-        self.min_detect_conf=min_detect_conf
-        self.mpFaceDetection = mp.solutions.face_detection
+    def __init__(self,
+                 detect_conf=0.5):
+
+        self.detect_conf=detect_conf
+
         self.mpDraw = mp.solutions.drawing_utils
-        self.faceDetection = self.mpFaceDetection.FaceDetection(min_detection_confidence=self.min_detect_conf)
+        self.mpFaceDetection = mp.solutions.face_detection
+        self.faceDetection = self.mpFaceDetection.FaceDetection(min_detection_confidence=self.detect_conf)
 
     def find_faces(self, img, draw=True):
         """
@@ -29,7 +32,7 @@ class FaceDetector():
         """
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.faceDetection.process(imgRGB)
-        # print(self.results)
+        print(self.results)
         bounding_boxes = []
 
         if self.results.detections:
@@ -37,26 +40,26 @@ class FaceDetector():
                 boundingBox = detection.location_data.relative_bounding_box
                 h, w, c = img.shape
                 bbox = int(boundingBox.xmin * w), int(boundingBox.ymin * h), int(boundingBox.width * w), int(boundingBox.height * h)
-                bounding_boxes.append([id, bounding_boxes, detection.score])
+                bounding_boxes.append([id, bbox, detection.score])
 
-                img = self.precise_faces_draw(img, bbox, length=50, thickness=10)
+                if draw:
+                    img = self.precise_bbox(img, bbox, length=30, thickness=8)
 
-                # cv2.rectangle(img, bbox, (255, 0, 255), 2)
-                cv2.putText(img=img,
-                            text=f"Visage {id+1} - {int(detection.score[0]*100)} %",
-                            org=(bbox[0],bbox[1]-10),
-                            fontFace=cv2.FONT_HERSHEY_PLAIN,
-                            fontScale=2,
-                            color=(255, 255, 255),
-                            thickness=1)
+                    cv2.putText(img=img,
+                                text=f"Visage {id+1} - {int(detection.score[0]*100)} %",
+                                org=(bbox[0],bbox[1]-10),
+                                fontFace=cv2.FONT_HERSHEY_PLAIN,
+                                fontScale=2,
+                                color=(255, 255, 255),
+                                thickness=1)
 
         return img, bounding_boxes
 
-    def precise_faces_draw(self,
-                           img,
-                           bbox,
-                           length=30,
-                           thickness=10):
+    def precise_bbox(self,
+                     img,
+                     bbox,
+                     length=30,
+                     thickness=10):
         x, y, w, h = bbox
         x1, y1 = x + w, y + h
 
@@ -85,12 +88,13 @@ def main():
     pTime = 0
     cTime = 0
     cap = cv2.VideoCapture(0)
-    # cap = cv2.VideoCapture('/Users/nicolasmarechal/code/projects/02-Computer_Vision/Real-Time-Facial-Emotion-Recognition/data/videos/video_happy_01.mp4')
-    detector = FaceDetector(min_detect_conf=0.5)
+    # cap = cv2.VideoCapture('../../data/videos/video_sad_01.mp4')
+    detector = FaceDetector(detect_conf=0.5)
 
     while True:
         success, img = cap.read()
         img, bbox = detector.find_faces(img, draw=True)
+        print(bbox)
 
         cTime = time.time()
         fps = 1/(cTime-pTime)

@@ -27,7 +27,7 @@ def detect_face(colored_img, scale_factor=1.1, min_neighbors=5):
     gray = cv2.cvtColor(img_copy, cv2.COLOR_BGR2GRAY)
 
     # Train haar cascade on xml file
-    haar_cascade = cv2.CascadeClassifier('../data/haar_faces.xml')
+    haar_cascade = cv2.CascadeClassifier('haar_faces.xml')
 
     # detect multiscale (some images may be closer to camera than others) images
     faces_boxes = haar_cascade.detectMultiScale(image=gray,
@@ -48,8 +48,8 @@ def detect_face(colored_img, scale_factor=1.1, min_neighbors=5):
 def main():
     pTime = 0
     cTime = 0
-    # cap = cv2.VideoCapture(0)
-    cap = cv2.VideoCapture('../data/videos/video_happy_01.mp4') # Local video version
+    cap = cv2.VideoCapture(0)
+    # cap = cv2.VideoCapture('../data/videos/video_happy_01.mp4') # Local video version
 
     # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1040)
     # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
