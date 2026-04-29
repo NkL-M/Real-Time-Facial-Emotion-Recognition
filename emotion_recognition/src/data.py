@@ -9,7 +9,7 @@ from emotion_recognition.params import *
 def batch_ratio(tf_dataset,
                 ratio=0.2):
     """
-    Function allowing to keep a ratio of initial tensorflow dataset batches
+    Function allowing to keep a ratio of initial tensorflow dataset batches.
 
     arg
     ----
@@ -53,7 +53,6 @@ def load_data(dataset_type='train',
     fetching_ratio : float
         The ratio of the dataset to fetch (between 0 and 1).
 
-
     returns
     ----
     dataset : tf.PrefetchDataset
@@ -71,7 +70,7 @@ def load_data(dataset_type='train',
         'fear',
         'disgust',
         'surprise'
-    ] # TODO verify if model  correctly order according to the list
+    ] # Categorical output ordered same as this list
 
     if dataset_type=='train':
         dataset = image_dataset_from_directory(
