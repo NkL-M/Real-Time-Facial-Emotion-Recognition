@@ -5,8 +5,8 @@ Module for models training and testing
 import time
 import tensorflow as tf
 from keras.preprocessing import image
-from keras import Sequential, layers, Input, regularizers, optimizers, models
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras import Model, Sequential, layers, Input, regularizers, optimizers, models
+from keras import callbacks
 
 # Transfer learning models
 from keras.applications.vgg16 import VGG16
@@ -14,13 +14,14 @@ from keras.applications.resnet50 import ResNet50
 from keras.applications.efficientnet import EfficientNetB4
 
 # Project's packages
-# from emotion_recognition.src.preprocessing import ...
-# from emotion_recognition.src.registry import ...
+# from emotion_recognition.src.registry import save_model,
+from emotion_recognition.params import *
+from emotion_recognition.src.registry import *
 
 # TODO: Put baseline architecture
 
 
-def initialize_model(input_shape : tuple) -> tf.keras.Model:
+def initialize_model(input_shape : tuple) -> tf.keras.Model: # TODO Use global var or even put it only in the code npt args
     """
     Initialize a tensorflow model
 
@@ -50,21 +51,20 @@ def initialize_model(input_shape : tuple) -> tf.keras.Model:
     model.add(layers.Dropout(rate=0.2))
 
     # Flatten Layer
-    model.add(layers.Flatten())
+    model.add(layers.Flatten()) # TODO Global Average Pooling ??
 
     # Final Dense Layers
     model.add(layers.Dense(128, activation='relu'))
     model.add(layers.Dropout(rate=0.2))
     model.add(layers.Dense(7, activation='softmax'))
 
-    print('Model successfully initialized')
+    print(Fore.GREEN + f"Model successfully initialized" + Style.RESET_ALL)
 
     print(model.summary())
 
     return model
 
-def compile_model(model,
-                  learning_rate=0.01) -> tf.keras.Model:
+def compile_model(model, learning_rate=0.01) -> tf.keras.Model:
     """
     Compile model
 
@@ -83,16 +83,18 @@ def compile_model(model,
         metrics=['accuracy', 'f1'] # TODO: Choose which metrics
     )
 
-    print("Model successfully compiled")
+    print(Fore.GREEN + f"Model successfully compiled" + Style.RESET_ALL)
     return model
 
-def train_model(model : tf.keras.Model,
-                train_dataset,
-                val_dataset,
-                epochs=10,
-                patience=5,
-                checkpoint=True,
-                saved_name='default_model'):
+def train_model(
+        model : tf.keras.Model,
+        train_dataset,
+        val_dataset,
+        epochs=10,
+        es_patience=5,
+        checkpoint=True,
+        save_name='default_model01'
+    ) -> tuple[Model, dict]:
     """
     Train model and save it locally
 
@@ -109,49 +111,57 @@ def train_model(model : tf.keras.Model,
 
     returns
     ----
-    model, history : tf.keras.Model, dict
+    model, history : tuple (tf.keras.Model, dict)
     """
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S") # TODO CHECK if needed here
 
     if checkpoint:
-        es = [
-            EarlyStopping(
-                patience=patience,
-                restore_best_weights=True),
-            ModelCheckpoint(
+        model_cbs = [
+            callbacks.EarlyStopping(
+                patience=es_patience,
+                restore_best_weights=True,
+                start_from_epoch=es_patience # Allows warm-up period before early stopping
+            ),
+            callbacks.ModelCheckpoint(
                 filepath="checkpoint.keras",
+                # filepath=SAVE_MODELS_DIR,
                 monitor="val_accuracy", # TODO: Choose monitor
                 save_best_only=True,
+                save_weights_only=True,
                 mode='max',
-                verbose=0
+                verbose=1
             )
         ]
     else:
-        es = [
-            EarlyStopping(
-                patience=patience,
-                restore_best_weights=True
+        model_cbs = [
+            callbacks.EarlyStopping(
+                patience=es_patience,
+                restore_best_weights=True,
+                start_from_epoch=es_patience
             )
         ]
 
     history = model.fit(
         train_dataset,
         epochs=epochs,
-        callbacks=es,
+        callbacks=model_cbs,
         validation_data=val_dataset,
         verbose=1
     )
 
-    print("Model sucessfully trained")
+    if checkpoint:
+        save_model(               # TODO: verify every checkpoint function works
+            model=model,
+            model_name=save_name
+        )
 
-    if checkpoint==True:
-        # store_model( # TODO: Create store model
-        #     bucket_name="pixel-truth-bucket",
-        #     source_file_name="checkpoint.keras",
-        #     destination_blob_name=(f"saved-model-weights/{saved_name}-{timestamp}.keras")
-        # )
+        save_results(
+            params=1,
+            metrics=2,
+            model_name=save_name
+        )
 
-        print(f"Model successfully saved locally as '{saved_name}' at timestamp: {timestamp}")
+    print(Fore.GREEN + f"\nModel sucessfully trained" + Style.RESET_ALL) # TODO add ?? -> + f"Validation metric: {round(history['val_accuracy'][-1], 2)}")
 
     return model, history
 
