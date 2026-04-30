@@ -1,13 +1,17 @@
 """
-Module for creating dataset
+Module for loading image datasets from the `data` directory and transforming into
+a tensorflow dataset ready to be fed into tf models.
 """
+from colorama import Fore, Style
 import tensorflow as tf
 from keras.utils import image_dataset_from_directory
-from emotion_recognition.params import *
+from emotion_recognition.params import SEED, DATA_DIR
 
 
-def batch_ratio(tf_dataset,
-                ratio=0.2):
+def batch_ratio(
+        tf_dataset,
+        ratio: int = 0.2
+    ) -> tuple[tf.data.Dataset, int]:
     """
     Function allowing to keep a ratio of initial tensorflow dataset batches.
 
@@ -18,22 +22,25 @@ def batch_ratio(tf_dataset,
 
     returns
     ----
-    ratio_dataset : tensorflow.python.data.ops.prefetch_op._PrefetchDataset
+    (ratio_dataset, batch_number) : tuple
+        ratio_dataset : tf.data.Dataset
+        batch_number : int
     """
     if ratio <= 1.0 and ratio > 0.0:
         batch_number = tf_dataset.cardinality().numpy() # Computes number of batches
         ratio_dataset = tf_dataset.take(int(batch_number * ratio)) # Takes a ratio of the batches
         ratio_dataset = ratio_dataset.prefetch(tf.data.AUTOTUNE) # Turn back into a prefetch datset for performance
-        print(f'Sucessfully loaded dataset of {int(batch_number * ratio)} ({int(ratio*100)}%) batches of {BATCH_SIZE} images).')
-        return ratio_dataset
+        return ratio_dataset, batch_number
 
     else:
         raise ValueError(f'Out of range ratio inputed: {ratio}')
 
-def load_data(dataset_type='train',
-              batch_size=BATCH_SIZE,
-              input_size=IMAGE_SIZE,
-              fetching_ratio=0.2):
+def load_data(
+        dataset_type: str = 'train',
+        batch_size: int = 32,
+        input_size: tuple =(48, 48),
+        fetch_ratio: float =0.2
+    ) -> tf.data.Dataset:
     """
     Load the dataset from local directory and transform it in a tensorflow dataset.
 
@@ -87,17 +94,21 @@ def load_data(dataset_type='train',
             seed=SEED
         )
 
-        dataset_train = batch_ratio(
+        train_ds, train_batch_nb = batch_ratio(
             tf_dataset=dataset[0],
-            ratio=fetching_ratio
+            ratio=fetch_ratio
         )
 
-        dataset_val = batch_ratio(
+        val_ds, val_batch_nb = batch_ratio(
             tf_dataset=dataset[1],
-            ratio=fetching_ratio
+            ratio=fetch_ratio
         )
 
-        dataset = (dataset_train, dataset_val)
+        print(Fore.GREEN + f"Sucessfully loaded {int(fetch_ratio*100)}% of the training and validation datasets." + Style.RESET_ALL)
+        print(Fore.WHITE + f"Training dataset: {int(train_batch_nb * fetch_ratio)} batches of {batch_size} images." + Style.RESET_ALL)
+        print(Fore.WHITE + f"Validation dataset: {int(val_batch_nb * fetch_ratio)} batches of {batch_size} images." + Style.RESET_ALL)
+
+        dataset = (train_ds, val_ds)
 
 
     elif dataset_type=='test':
@@ -113,10 +124,13 @@ def load_data(dataset_type='train',
             seed=SEED
         )
 
-        dataset = batch_ratio(
+        dataset, test_batch_nb = batch_ratio(
             tf_dataset=dataset,
-            ratio=fetching_ratio
+            ratio=fetch_ratio
         )
+
+        print(Fore.GREEN + f"Sucessfully loaded {int(fetch_ratio*100)}% of the test dataset." + Style.RESET_ALL)
+        print(Fore.WHITE + f"Test dataset: {int(test_batch_nb * fetch_ratio)} batches of {batch_size} images." + Style.RESET_ALL)
 
     else:
         raise ValueError(f"dataset_type not found: '{dataset_type}'")
