@@ -5,6 +5,8 @@ Module for real time facial landmarks detection using mediapipe
 import time
 import cv2
 import mediapipe as mp
+from pathlib import Path
+from emotion_recognition.params import *
 
 class FacialTracker():
     def __init__(self,
@@ -59,7 +61,7 @@ def main():
     pTime = 0
     cTime = 0
     cap = cv2.VideoCapture(0)
-    # cap = cv2.VideoCapture('../data/videos/video_happy_01.mp4')
+    # cap = cv2.VideoCapture(str(DATA_DIR/'videos'/'video_happy_01.mp4'))
     tracker = FacialTracker()
 
     while True:
