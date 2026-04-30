@@ -1,11 +1,12 @@
 from pathlib import Path
+import time
 
-# Directories paths
+# Dir paths
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
 DATA_DIR=PROJECT_ROOT/'data'
-SAVE_MODELS_DIR=PROJECT_ROOT/'saved_models'
+MODELS_REGISTRY_DIR=PROJECT_ROOT/'models_registry'
 
-# Models arguments
+# Models args
 IMAGE_SIZE=(48, 48)
 BATCH_SIZE=32
 SEED=42
