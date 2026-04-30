@@ -1,5 +1,4 @@
 from pathlib import Path
-import time
 
 # Dir paths
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
