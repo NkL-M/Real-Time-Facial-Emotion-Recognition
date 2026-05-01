@@ -18,11 +18,11 @@ def save_model(
     """
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
-    model_path = MODELS_REGISTRY_DIR/'saved_models'/f'{model_name}_{timestamp}.keras'
+    model_path = MODELS_REGISTRY_DIR/'saved_models'/f'{timestamp}_{model_name}.keras'
 
     # Save model locally
     model.save(model_path)
-    print(Fore.BLUE + f"\nModel saved locally as '{model_name}_{timestamp}.keras'" + Style.RESET_ALL)
+    print(Fore.BLUE + f"\nModel saved locally as '{timestamp}_{model_name}.keras'" + Style.RESET_ALL)
 
 
 def save_results(
