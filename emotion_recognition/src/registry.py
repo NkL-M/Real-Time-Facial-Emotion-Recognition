@@ -1,7 +1,6 @@
 from pathlib import Path
 import time
 import glob
-import os
 import pickle
 from colorama import Fore, Style
 import keras
@@ -10,7 +9,8 @@ from emotion_recognition.params import *
 
 def save_model(
         model: keras.Model = None,
-        model_name: str = 'default-model01'):
+        model_name: str = 'default-model01'
+    ) -> None:
     """
     Persist trained model locally at:
 
