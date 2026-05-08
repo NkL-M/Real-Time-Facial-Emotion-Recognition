@@ -85,7 +85,7 @@ def load_data(
             labels="inferred",
             label_mode='categorical',
             class_names=emotions_classes,
-            color_mode='grayscale',
+            color_mode='rgb', # TODO Change if neccesary to 'grayscale'
             batch_size=batch_size,
             image_size=input_size,
             shuffle=True,
@@ -117,7 +117,7 @@ def load_data(
             labels="inferred",
             label_mode='categorical',
             class_names=emotions_classes,
-            color_mode='grayscale',
+            color_mode='rgb', # TODO Change if neccesary
             batch_size=batch_size,
             image_size=input_size,
             shuffle=True,
