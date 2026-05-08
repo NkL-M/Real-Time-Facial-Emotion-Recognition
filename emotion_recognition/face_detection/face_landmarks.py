@@ -62,6 +62,7 @@ def main():
     cTime = 0
     cap = cv2.VideoCapture(0)
     # cap = cv2.VideoCapture(str(DATA_DIR/'videos'/'video_happy_01.mp4'))
+    # cap = cv2.ImageCapture(str(DATA_DIR/'train'/'angry'/'Training_3908.jpg'))
     tracker = FacialTracker()
 
     while True:
