@@ -35,14 +35,15 @@ def batch_ratio(
     else:
         raise ValueError(f'Out of range ratio inputed: {ratio}')
 
-def load_data(
+def load_data_val_split(
         dataset_type: str = 'train',
         batch_size: int = 32,
-        input_size: tuple =(48, 48),
-        fetch_ratio: float =0.2
+        input_size: tuple = (48, 48),
+        fetch_ratio: float = 0.2
     ) -> tf.data.Dataset:
     """
     Load the dataset from local directory and transform it in a tensorflow dataset.
+    Allows to load data from a train with a fraction of 0.2 kept for the validation.
 
     args
     ----
@@ -136,3 +137,73 @@ def load_data(
         raise ValueError(f"dataset_type not found: '{dataset_type}'")
 
     return dataset
+
+def load_data(
+        dataset_type: str = 'train',
+        batch_size: int = 32,
+        image_size: tuple = (112, 112),
+        fetch_ratio: float = 0.2
+    ) -> tf.data.Dataset:
+    """
+    Load the dataset from local directory and transform it in a tensorflow dataset.
+
+    args
+    ----
+    data_type : str
+        Wether to load the train, val or the test dataset.
+        - 'train'
+        - 'val'
+        - 'test'
+
+    batch_size : int
+        Number of images per batch.
+
+    input_size : tuple
+        The width and heigth of input images.
+
+    fetching_ratio : float
+        The ratio of the dataset to fetch (between 0 and 1).
+
+    returns
+    ----
+    dataset : tf.PrefetchDataset
+        Return a dataset of the given type.
+    """
+    emotions_classes = [
+        'neutral',
+        'happy',
+        'anger', # 'angry' for FER-2013
+        'sad',
+        'fear',
+        'disgust',
+        'contempt', # Not in FER-2013
+        'surprise'
+    ] # Categorical output ordered same as this list
+
+    dataset_types = ['train', 'val', 'test']
+
+    if dataset_type not in dataset_types:
+        raise ValueError(f"dataset_type not found: '{dataset_type}'")
+
+    else:
+        dataset = image_dataset_from_directory(
+            directory=DATA_DIR/dataset_type,
+            labels="inferred",
+            label_mode='categorical',
+            class_names=emotions_classes,
+            color_mode='rgb',
+            batch_size=batch_size,
+            image_size=image_size,
+            shuffle=True,
+            seed=SEED
+        )
+
+        dataset,dataset_batch_nb = batch_ratio(
+            tf_dataset=dataset,
+            ratio=fetch_ratio
+        )
+
+        print(Fore.GREEN + f"Sucessfully loaded {int(fetch_ratio*100)}% of the {dataset_type} dataset." + Style.RESET_ALL)
+        print(Fore.WHITE + f"Training dataset: {int(dataset_batch_nb * fetch_ratio)} batches of {batch_size} images." + Style.RESET_ALL)
+
+        return dataset
