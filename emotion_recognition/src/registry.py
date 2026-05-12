@@ -3,12 +3,12 @@ import time
 import glob
 import pickle
 from colorama import Fore, Style
-import keras
+from keras import models, Model
 from emotion_recognition.params import *
 
 
 def save_model(
-        model: keras.Model = None,
+        model: Model = None,
         model_name: str = 'default-model01'
     ) -> None:
     """
@@ -55,7 +55,7 @@ def save_results(
 def load_model(
         model_name: str = 'default-model01',
         latest_model=True
-    ) -> keras.Model:
+    ) -> Model:
     """
     Return a saved model stored on disk
 
@@ -81,9 +81,9 @@ def load_model(
     if latest_model == True:
         model_path = models_list[-1]
     else:
-        model_path = str(MODELS_REGISTRY_DIR/'saved_models'/ f'{model_name}.keras')
+        model_path = str(MODELS_REGISTRY_DIR/'saved_models'/ f'*{model_name}*.keras')
 
-    model = keras.models.load_model(model_path)
+    model = models.load_model(model_path)
 
     print(Fore.GREEN + f"\nModel loaded from local disk" + Style.RESET_ALL)
 
