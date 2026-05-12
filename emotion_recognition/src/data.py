@@ -38,7 +38,7 @@ def batch_ratio(
 def load_data_val_split(
         dataset_type: str = 'train',
         batch_size: int = 32,
-        input_size: tuple = (48, 48),
+        image_size: tuple = (48, 48),
         fetch_ratio: float = 0.2
     ) -> tf.data.Dataset:
     """
@@ -88,7 +88,7 @@ def load_data_val_split(
             class_names=emotions_classes,
             color_mode='rgb', # TODO Change if neccesary to 'grayscale'
             batch_size=batch_size,
-            image_size=input_size,
+            image_size=image_size,
             shuffle=True,
             validation_split=0.2,
             subset='both',
@@ -120,7 +120,7 @@ def load_data_val_split(
             class_names=emotions_classes,
             color_mode='rgb', # TODO Change if neccesary
             batch_size=batch_size,
-            image_size=input_size,
+            image_size=image_size,
             shuffle=True,
             seed=SEED
         )
