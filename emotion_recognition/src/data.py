@@ -9,7 +9,7 @@ from emotion_recognition.params import SEED, DATA_DIR
 
 
 def batch_ratio(
-        tf_dataset,
+        dataset: tf.data.Dataset,
         ratio: int = 0.2
     ) -> tuple[tf.data.Dataset, int]:
     """
@@ -27,9 +27,9 @@ def batch_ratio(
         batch_number : int
     """
     if ratio <= 1.0 and ratio > 0.0:
-        batch_number = tf_dataset.cardinality().numpy() # Computes number of batches
-        ratio_dataset = tf_dataset.take(int(batch_number * ratio)) # Takes a ratio of the batches
-        ratio_dataset = ratio_dataset.prefetch(tf.data.AUTOTUNE) # Turn back into a prefetch datset for performance
+        batch_number = dataset.cardinality().numpy() # Computes number of batches
+        ratio_dataset = dataset.take(int(batch_number * ratio)) # Takes a ratio of the batches
+        ratio_dataset = ratio_dataset.prefetch(tf.data.AUTOTUNE) # Turn back into a prefetch dataset for performance
         return ratio_dataset, batch_number
 
     else:
