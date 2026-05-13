@@ -69,7 +69,7 @@ def load_model(
 
     Return None (but do not Raise) if no model is found.
     """
-    models_paths_match = str(MODELS_REGISTRY_DIR / 'saved_models' / f'{model_name}_*.keras')
+    models_paths_match = str(MODELS_REGISTRY_DIR / 'saved_models' / f'*{model_name}*.keras')
     models_list = sorted(glob.glob(models_paths_match))
 
     print(Fore.WHITE + f"\nLoad model from local registry..." + Style.RESET_ALL)
@@ -85,6 +85,6 @@ def load_model(
 
     model = models.load_model(model_path)
 
-    print(Fore.GREEN + f"\nModel loaded from local disk" + Style.RESET_ALL)
+    print(Fore.GREEN + f"\nModel loaded from local disk, from the following path: {model_path}" + Style.RESET_ALL)
 
     return model
