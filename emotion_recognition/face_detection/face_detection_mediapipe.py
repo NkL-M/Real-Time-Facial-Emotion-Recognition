@@ -1,5 +1,5 @@
 """
-Module for real time face detection using mediapipe
+Module for real time face detection using mediapipe.
 """
 
 import time
