@@ -5,8 +5,7 @@ Module for training, evaluating and predicting models.
 import time
 import tensorflow as tf
 from colorama import Fore, Style
-from keras.preprocessing import image # TODO remove
-from keras import Model, Sequential, layers, Input, regularizers, optimizers, models, metrics
+from keras import Model, Sequential, layers, Input, regularizers, optimizers, metrics
 from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 
 # Transfer learning models
@@ -21,9 +20,9 @@ from emotion_recognition.src.registry import load_model
 #---------------------------#
 #   Models Architectures    #
 #---------------------------#
-def initialize_baseline_model(input_shape : tuple) -> Model: # TODO: Put baseline architecture
+def initialize_baseline_model(input_shape : tuple) -> Model:
     """
-    Initialize a baseline tensorflow model
+    Initialize a baseline model architecture.
 
     arg
     ----
@@ -44,7 +43,7 @@ def initialize_baseline_model(input_shape : tuple) -> Model: # TODO: Put baselin
     model.add(layers.MaxPool2D(pool_size=(2,2)))
 
     # Flatten Layer
-    model.add(layers.Flatten()) # TODO Global Average Pooling ??
+    model.add(layers.Flatten())
 
     # Final Dense Layers
     model.add(layers.Dense(32, activation='relu'))
@@ -58,7 +57,7 @@ def initialize_baseline_model(input_shape : tuple) -> Model: # TODO: Put baselin
 
 def initialize_custom_model(input_shape : tuple) -> Model:
     """
-    Initialize a tensorflow model
+    Initialize a custom model architecture.
 
     arg
     ----
@@ -88,7 +87,7 @@ def initialize_custom_model(input_shape : tuple) -> Model:
     model.add(layers.MaxPool2D(pool_size=(2,2)))
 
     # Flatten Layer
-    model.add(layers.Flatten()) # TODO Global Average Pooling ??
+    model.add(layers.Flatten())
 
     # Final Dense Layers
     model.add(layers.Dense(64, activation='relu'))
@@ -106,7 +105,7 @@ def initialize_custom_model(input_shape : tuple) -> Model:
 #---------------------#
 #  Transfer Learning  #
 #---------------------#
-def load_transfer_learning_model( # TODO Add and select Tranfer Learning models
+def load_transfer_learning_model(
         model_name='resnet50',
         input_shape=(112, 112, 3)
     ) -> Model:
@@ -260,9 +259,9 @@ def initialize_transfer_learning_model(
 
 
 #---------------------#
-#     Fine Tuning     # TODO
+#     Fine Tuning     #
 #---------------------#
-def initialize_finetuning_model(
+def load_model_for_finetuning(
         model_name='resnet50',
         latest_model=True,
         unfroze_layers=15
@@ -273,12 +272,15 @@ def initialize_finetuning_model(
     args
     ----
     model_name : str
+        - Model's name to load from disk.
 
     unfroze_layers : int
+        - Number of the last layers to unfroze for training.
 
     returns
     ----
     model : Model
+        - Model with unfrozen layers.
     """
     model = load_model(model_name=model_name, latest_model=latest_model)
 
@@ -292,97 +294,15 @@ def initialize_finetuning_model(
 
     return model
 
-def train_ft_model(
-        model : Model,
-        train_dataset,
-        val_dataset,
-        epochs=10,
-        es_patience=5,
-        checkpoint=True,
-        save_name='fine_tuning_model01'
-    ) -> tuple[Model, dict]:
-    """
-    Train / Fine tuning model and save it locally.
-
-    args
-    ----
-    epochs : int
-
-    patience : int
-
-    checkpoint : bool
-
-    saved_name : str
-
-
-    returns
-    ----
-    model, history : tuple (Model, dict)
-    """
-    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-
-    if checkpoint:
-        model_cbks = [
-            EarlyStopping(
-                patience=es_patience,
-                restore_best_weights=True,
-                start_from_epoch=es_patience # Allows warm-up period before early stopping
-            ),
-
-            ModelCheckpoint(
-                filepath = str(MODELS_REGISTRY_DIR / 'saved_weights' /
-                            f'{timestamp}_{save_name}_epoch{{epoch:02d}}_val_accuracy{{val_accuracy:.2f}}.weights.h5'),
-                monitor='val_accuracy',
-                save_best_only=True,
-                save_weights_only=True,
-                mode='max',
-                verbose=1
-            ),
-
-            ReduceLROnPlateau(
-                factor=0.5, patience=4,
-                min_lr=1e-5
-            )
-        ]
-
-        print(Fore.BLUE + f"\nModel's first checkpoint saved locally as '{timestamp}_{save_name}.h5'" + Style.RESET_ALL)
-
-    else:
-        model_cbks = [
-            EarlyStopping(
-                patience=es_patience,
-                restore_best_weights=True,
-                start_from_epoch=es_patience
-            ),
-
-            ReduceLROnPlateau(
-                factor=0.5, patience=4,
-                min_lr=1e-5
-            )
-        ]
-
-    history = model.fit(
-        train_dataset,
-        epochs=epochs,
-        batch_size=BATCH_SIZE,
-        callbacks=model_cbks,
-        validation_data=val_dataset,
-        verbose=1
-    )
-
-    print(Fore.GREEN + f"\nModel sucessfully fine-tuned" + Style.RESET_ALL) # TODO add ?? -> + f"Validation metric: {round(history['val_accuracy'][-1], 2)}")
-
-    return model, history
-
 
 #---------------------#
 #   Model Function    #
 #---------------------#
 def compile_model(
     model: Model,
-    trainset: tf.data.Dataset#,
-    # learning_rate=0.01
-    ) -> Model: # TODO Choose Learning_rate
+    # trainset: tf.data.Dataset,
+    learning_rate: float = 0.01
+    ) -> Model:
     """
     Compile model
 
@@ -394,32 +314,26 @@ def compile_model(
     -----
     model : Model
     """
-    lr_scheduler = optimizers.schedules.CosineDecay(initial_learning_rate=0.01,
-                                                          decay_steps=50 * len((trainset)),
-                                                          alpha=1e-5)
-    # lr_scheduler = tf.keras.callbacks.ReduceLROnPlateau(
-    #     monitor='val_accuracy',
-    #     factor=0.5,
-    #     patience=3,
-    #     verbose=1
-    #     )
-    optimizer = optimizers.SGD(learning_rate=lr_scheduler,
-                                     momentum=0.9,
-                                     nesterov=True,
-                                     weight_decay=5e-4)
+    # lr_scheduler = optimizers.schedules.CosineDecay(initial_learning_rate=0.01,
+    #                                                 decay_steps=50 * len((trainset)), # TODO Optimizer V1
+    #                                                 alpha=1e-5)
+    # optimizer = optimizers.SGD(learning_rate=lr_scheduler,
+    #                                  momentum=0.9,
+    #                                  nesterov=True,
+    #                                  weight_decay=5e-4)
 
-    # optimizer = optimizers.AdamW(
-    #     # learning_rate=learning_rate
-    #     learning_rate=learning_rate,    # 10× lower than Phase 1
-    #     weight_decay=learning_rate
-    #     )
-    f1_weighted = metrics.F1Score(average='weighted', name='f1_weighted')
-    f1_macro = metrics.F1Score(average='macro', name='f1_macro')
-    metric = [f1_weighted, f1_macro]
+    optimizer = optimizers.AdamW(
+        learning_rate=learning_rate,    # 10× lower than Phase 1
+        weight_decay=learning_rate * 4
+        )
+
+    # f1_weighted = metrics.F1Score(average='weighted', name='f1_weighted')
+    # f1_macro = metrics.F1Score(average='macro', name='f1_macro')
+    # metric = [f1_weighted, f1_macro]
 
     model.compile(
         optimizer=optimizer,
-        loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),#'categorical_crossentropy',
+        loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
         metrics=['accuracy'] # TODO: Choose which metrics
     )
 
@@ -431,8 +345,9 @@ def train_model(
         train_dataset,
         val_dataset,
         epochs=10,
-        es_patience=5,
+        patience=5,
         checkpoint=True,
+        reduce_lr=True,
         save_name='default_model01'
     ) -> tuple[Model, dict]:
     """
@@ -453,44 +368,48 @@ def train_model(
     ----
     model, history : tuple (Model, dict)
     """
-    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S") # TODO CHECK if needed here
+    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
-    if checkpoint:
-        model_cbks = [
-            EarlyStopping(
-                patience=es_patience,
+    early_stopping = EarlyStopping(
+                patience=patience,
                 restore_best_weights=True,
-                start_from_epoch=es_patience # Allows warm-up period before early stopping
-            ),
+                start_from_epoch=patience # Warm-up period before early stopping
+            )
 
-            ModelCheckpoint(
+    model_checkpoints = ModelCheckpoint(
                 filepath = str(MODELS_REGISTRY_DIR / 'saved_weights' /
-                            f'{timestamp}_{save_name}_epoch{{epoch:02d}}_val_accuracy{{val_accuracy:.2f}}.weights.h5'), # TODO Change metric val
-                monitor='val_accuracy', # TODO: Which monitor metric
-                # monitor='val_f1_weighted',
+                    f'{timestamp}_{save_name}_epoch{{epoch:02d}}_val_accuracy{{val_accuracy:.2f}}.weights.h5'),
+                monitor='val_accuracy', # monitor='val_f1_weighted', TODO: Which monitor metric
                 save_best_only=True,
                 save_weights_only=True,
                 mode='max',
                 verbose=1
             )
-        ]
 
+    reduce_lr_on_plateau = ReduceLROnPlateau(
+                factor=0.5,
+                patience=5,
+                verbose=1,
+                min_lr=1e-5
+            )
+
+    model_callbacks = []
+
+    if patience:
+        model_callbacks.append(early_stopping)
+
+    if checkpoint:
+        model_callbacks.append(model_checkpoints)
         print(Fore.BLUE + f"\nModel's first checkpoint saved locally as '{timestamp}_{save_name}.h5'" + Style.RESET_ALL)
 
-    else:
-        model_cbks = [
-            EarlyStopping(
-                patience=es_patience,
-                restore_best_weights=True,
-                start_from_epoch=es_patience
-            )
-        ]
-    # TODO Add tensorboard for monitoring
-    history = model.fit( # TODO Add batch size ???
+    if reduce_lr:
+        model_callbacks.append(reduce_lr_on_plateau)
+
+    history = model.fit(   # TODO Add tensorboard for monitoring ??
         train_dataset,
         epochs=epochs,
         batch_size=BATCH_SIZE,
-        callbacks=model_cbks,
+        callbacks=model_callbacks,
         validation_data=val_dataset,
         verbose=1
     )
