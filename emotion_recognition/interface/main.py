@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from keras.preprocessing import image # TODO remove if unecessary for predict
 from emotion_recognition.params import *
 from emotion_recognition.src.data import *
 from emotion_recognition.src.model import *
@@ -11,10 +12,11 @@ from emotion_recognition.face_detection.face_landmarks import FacialTracker
 
 def train(model_name: str = 'resnet50',
           data_ratio: float = 0.2,
-          lr: float = 0.01,
+          learning_rate: float = 0.01,
           epochs: int = 50,
           patience: int = 10,
           checkpoint: bool = True,
+          reduce_lr: bool = True,
           registry: bool =True,
           save_name: str ='default_model01'
         ) -> tuple[Model, dict]:
@@ -24,29 +26,26 @@ def train(model_name: str = 'resnet50',
     args
     ----
     data_ratio : float
-
-    Ration of data to load.
+        - Ratio of data to load.
 
     lr : float
+        - Learning rate (hyper-parameter).
 
-    Learning rate (hyper-parameter).
-
-    patience : int
-
-    Number of times validation metric not-improving before stopping training.
-    Also correspond to the warm-up.
+    patience : inT
+        - Number of times validation metric not-improving before stopping training.
+        Also correspond to the warm-up period.
 
     checkpoint : bool
+        - Save weigths during training.
 
-    Save weigths during training.
+    reduce_lr : bool
+        -
 
     registry : bool
-
-    Save parameters, last/best validation metric value, and entire model.
+        - Save parameters, last/best validation metric value, and entire model.
 
     save_name : str
-
-    Name to which the registered model's data will be saved as.
+        - Name to which the registered model's data will be saved as.
 
     returns
     ----
@@ -88,8 +87,8 @@ def train(model_name: str = 'resnet50',
 
     model = compile_model(
         model=model,
-        # learning_rate=lr,
-        trainset=train_data
+        # trainset=train_data
+        learning_rate=learning_rate
     )
 
     model, history = train_model(
@@ -97,22 +96,23 @@ def train(model_name: str = 'resnet50',
         train_dataset=train_data,
         val_dataset=val_data,
         epochs=epochs,
-        es_patience=patience,
+        patience=patience,
         checkpoint=checkpoint,
+        reduce_lr=reduce_lr,
         save_name=save_name
     )
 
     if registry:
         params = dict(
             model_save_name=save_name,
-            learning_rate=lr,
+            learning_rate=learning_rate,
             nb_epochs_set=epochs,
             early_stopping_patience=patience,
             batch_size=BATCH_SIZE,
             split_ratio=data_ratio
         )
 
-        best_val_metric = np.max(history.history['val_accuracy']) # history.history['val_accuracy'][-1]
+        best_val_metric = np.max(history.history['val_accuracy'])
 
         save_results(
             params=params,
@@ -125,18 +125,19 @@ def train(model_name: str = 'resnet50',
             model_name=save_name
         )
 
-    print(f'Validation metric= {best_val_metric}')
+    print(f'Validation score= {round(best_val_metric, 3)}')
 
     return model, history
 
-def fine_tuning(model_name : str,
+def train_fine_tuning(model_name : str,
                 latest_model: bool = False,
                 unfroze_layers: float = 15,
                 data_ratio: float = 0.2,
-                lr: float = 0.01,
+                learning_rate: float = 0.01,
                 epochs: int = 50,
                 patience: int = 10,
                 checkpoint: bool = True,
+                reduce_lr: bool = True,
                 registry: bool = True,
                 save_name: str = 'fine_tuning_model01'
             ) -> tuple[Model, dict]:
@@ -146,31 +147,26 @@ def fine_tuning(model_name : str,
     args
     ----
     model_name : str
+        - Name of the model to load.
 
     data_ratio : float
-
-    Ration of data to load.
+        - Ratio of data to load.
 
     lr : float
-
-    Learning rate (hyper-parameter).
+        - Learning rate (hyper-parameter).
 
     patience : int
-
-    Number of times validation metric not-improving before stopping training.
-    Also correspond to the warm-up.
+        - Number of times validation metric not-improving before stopping training.
+        Also correspond to the warm-up period.
 
     checkpoint : bool
-
-    Save weigths during training.
+        - Save weigths during training.
 
     registry : bool
-
-    Save parameters, last/best validation metric value, and entire model.
+        - Save parameters, last/best validation metric value, and entire model.
 
     save_name : str
-
-    Name to which the registered model's data will be saved as.
+        - Name to which the registered model's parameters, weights, metrics will be saved as.
 
     returns
     ----
@@ -190,14 +186,14 @@ def fine_tuning(model_name : str,
         fetch_ratio=data_ratio
     )
 
-    model = initialize_finetuning_model(model_name=model_name,
+    model = load_model_for_finetuning(model_name=model_name,
                                         latest_model=latest_model,
                                         unfroze_layers=unfroze_layers)
 
     model = compile_model(
         model=model,
-        # learning_rate=lr,
-        trainset=train_data
+        # trainset=train_data
+        learning_rate=learning_rate
     )
 
     model, history = train_model(
@@ -205,22 +201,23 @@ def fine_tuning(model_name : str,
         train_dataset=train_data,
         val_dataset=val_data,
         epochs=epochs,
-        es_patience=patience,
+        patience=patience,
         checkpoint=checkpoint,
+        reduce_lr=reduce_lr,
         save_name=save_name
     )
 
     if registry:
         params = dict(
             model_save_name=save_name,
-            learning_rate=lr,
+            learning_rate=learning_rate,
             nb_epochs_set=epochs,
             early_stopping_patience=patience,
             batch_size=BATCH_SIZE,
             split_ratio=data_ratio
         )
 
-        best_val_metric = np.max(history.history['val_accuracy']) # history.history['val_accuracy'][-1]
+        best_val_metric = np.max(history.history['val_accuracy'])
 
         save_results(
             params=params,
@@ -233,7 +230,7 @@ def fine_tuning(model_name : str,
             model_name=save_name
         )
 
-    print(f'Validation metric= {best_val_metric}')
+    print(f'Validation score= {round(best_val_metric, 3)}')
 
     return model, history
 
@@ -247,7 +244,7 @@ def evaluate_model(
     arg
     ----
     test_data_ratio : float
-    Ration of the test data to evaluate model on.
+        - Ratio of the test data to evaluate model on.
 
     returns
     ----
@@ -264,29 +261,45 @@ def evaluate_model(
 
     return eval_score
 
-def predict(X_new: Path,
-            model_name: str = 'vgg16_model_01',
-            latest_model: bool = False
-        ) -> tuple:
+def predict(image_path: Path,
+            model: Model,
+            # model_name: str = 'resnet50_f02',
+            image_size: tuple = (112, 112)
+        ) -> str:
     """
-    TODO Doc
-    Generates output predictions for the input samples.
+    Predict images by inputing paths.
+
+    arg
+    ----
+    image_size : tuple
+
 
     returns
     ----
-    prediction : np.array
+    prediction : str
+
+    Expected prediction time for an image (%timeit):
+    30.8 ms ± 298 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
     """
-    model = load_model(model_name=model_name,
-                       latest_model=latest_model)
+    # model = load_model(model_name=model_name)
 
-    # X_new = tf.
-    X_new = tf.convert_to_tensor(X_new)
+    emotions_dict = {0 : 'Neutral',
+                     1 : 'Happy',
+                     2 : 'Angry',
+                     3 : 'Sad',
+                     4 : 'Fear',
+                     5 : 'Disgust',
+                     6 : 'Surprise'}
 
-    prediction = model.predict(X_new)
+    img = tf.io.read_file(str(image_path))       # img = Image.open(path).convert("RGB")
+    img = tf.image.decode_image(img, channels=3) # img = tf.image.resize(img, size=image_size)
+    img = tf.image.resize(img, size=image_size)  # img = tf.convert_to_tensor(img)
 
-    print(f"Probability: {prediction[0]}")
-
-    return prediction[1]
+    x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape (1, 112, 112, 3)
+    outputs = model(x_preprocessed)             # model.predict(X_new)
+    prediction_index = tf.argmax(outputs[0]).numpy()
+    prediction = emotions_dict[prediction_index]
+    return prediction
 
 def main():
     pass
