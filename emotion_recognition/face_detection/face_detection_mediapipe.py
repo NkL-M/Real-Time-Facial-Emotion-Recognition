@@ -1,5 +1,5 @@
 """
-Module for real time face detection using mediapipe
+Module for real time face detection using mediapipe.
 """
 
 import time
@@ -32,7 +32,7 @@ class FaceDetector():
         """
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.faceDetection.process(imgRGB)
-        print(self.results)
+        # print(self.results)
         bounding_boxes = []
 
         if self.results.detections:
@@ -40,7 +40,8 @@ class FaceDetector():
                 boundingBox = detection.location_data.relative_bounding_box
                 h, w, c = img.shape
                 bbox = int(boundingBox.xmin * w), int(boundingBox.ymin * h), int(boundingBox.width * w), int(boundingBox.height * h)
-                bounding_boxes.append([id, bbox, detection.score])
+                # bounding_boxes.append([id, bbox, detection.score])
+                bounding_boxes.append(bbox)
 
                 if draw:
                     img = self.precise_bbox(img, bbox, length=30, thickness=8)
@@ -53,7 +54,7 @@ class FaceDetector():
                                 color=(255, 255, 255),
                                 thickness=1)
 
-        return img, bounding_boxes
+        return img, bbox # TODO or bounding_boxes
 
     def precise_bbox(self,
                      img,
