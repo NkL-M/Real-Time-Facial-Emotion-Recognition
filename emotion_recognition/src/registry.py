@@ -1,4 +1,3 @@
-from pathlib import Path
 import time
 import glob
 import pickle
@@ -7,14 +6,11 @@ from keras import models, Model
 from emotion_recognition.params import *
 
 
-def save_model(
-        model: Model = None,
-        model_name: str = 'default-model01'
+def save_model(model: Model = None,
+               model_name: str = 'default-model01'
     ) -> None:
     """
-    Persist trained model locally at:
-
-        {MODELS_REGISTRY_DIR}/saved_models/{model_name}_{timestamp}.keras
+    Persist trained model locally at: MODELS_REGISTRY_DIR/saved_models/timestamp_model_name.keras
     """
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -25,15 +21,14 @@ def save_model(
     print(Fore.BLUE + f"\nModel saved locally as '{timestamp}_{model_name}.keras'" + Style.RESET_ALL)
 
 
-def save_results(
-        params: dict,
-        metrics: dict,
-        model_name: str = 'default-model01'):
+def save_results(params: dict,
+                 metrics: dict,
+                 model_name: str = 'default-model01'
+    ) -> None:
     """
     Persist params & metrics locally on the hard drive at:
-
-        {MODELS_REGISTRY_DIR}/saved_params/params_{timestamp}_{model_name}.pickle
-        {MODELS_REGISTRY_DIR}/saved_metrics/metrics_{timestamp}_{model_name}.pickle
+        MODELS_REGISTRY_DIR/saved_params/params_timestamp_model_name.pickle
+        MODELS_REGISTRY_DIR/saved_metrics/metrics_timestamp_model_name.pickle
     """
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -52,12 +47,11 @@ def save_results(
     print(Fore.BLUE + f"\nResults saved locally" + Style.RESET_ALL)
 
 
-def load_model(
-        model_name: str = 'default-model01',
-        latest_model=True
+def load_model(model_name: str = 'default-model01',
+               latest_model: bool = True
     ) -> Model:
     """
-    Return a saved model stored on disk
+    Load a saved model stored on disk
 
     arg
     ----
@@ -65,9 +59,11 @@ def load_model(
         - Load latest one according to timestamp.
         If `False`, specify model full name in `model_name` with timestamp `Years-Months-Days_Hours-Minutes-Seconds`.
 
-        Exemple: `model_name`= `'default-model01_2026-01-31_08-37-58'`
+        Exemple: `model_name`= `'2026-01-31_08-37-58_default-model01'`
 
-    Return None (but do not Raise) if no model is found.
+    returns
+    ----
+    model: Model
     """
     models_paths_match = str(MODELS_REGISTRY_DIR / 'saved_models' / f'*{model_name}*.keras')
     models_list = sorted(glob.glob(models_paths_match))
