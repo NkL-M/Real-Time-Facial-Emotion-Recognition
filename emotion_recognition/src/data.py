@@ -2,18 +2,19 @@
 Module for loading image datasets from the `data` directory and transforming into
 a tensorflow dataset ready to be fed into tf models.
 """
-from colorama import Fore, Style
+
 import tensorflow as tf
+from keras import layers, Sequential
 from keras.utils import image_dataset_from_directory
-from emotion_recognition.params import SEED, DATA_DIR
+from colorama import Fore, Style
+from emotion_recognition.params import SEED, DATA_DIR, EMOTIONS_CLASSES
 
 
-def batch_ratio(
-        dataset: tf.data.Dataset,
-        ratio: int = 0.2
+def batch_ratio(dataset: tf.data.Dataset,
+                ratio: int = 0.2
     ) -> tuple[tf.data.Dataset, int]:
     """
-    Function allowing to keep a ratio of initial tensorflow dataset batches.
+    Allow to keep a ratio of the batches of a tensorflow dataset.
 
     arg
     ----
@@ -23,8 +24,6 @@ def batch_ratio(
     returns
     ----
     (ratio_dataset, batch_number) : tuple
-        ratio_dataset : tf.data.Dataset
-        batch_number : int
     """
     if ratio <= 1.0 and ratio > 0.0:
         batch_number = dataset.cardinality().numpy() # Computes number of batches
@@ -35,15 +34,14 @@ def batch_ratio(
     else:
         raise ValueError(f'Out of range ratio inputed: {ratio}')
 
-def load_data_val_split(
-        dataset_type: str = 'train',
-        batch_size: int = 32,
-        image_size: tuple = (48, 48),
-        fetch_ratio: float = 0.2
+def load_data_val_split(dataset_type: str = 'train',
+                        batch_size: int = 64,
+                        image_size: tuple = (48, 48),
+                        fetch_ratio: float = 0.2,
+                        validation_split: float = 0.2
     ) -> tf.data.Dataset:
     """
     Load the dataset from local directory and transform it in a tensorflow dataset.
-    Allows to load data from a train with a fraction of 0.2 kept for the validation.
 
     args
     ----
@@ -56,10 +54,13 @@ def load_data_val_split(
         Number of images per batch.
 
     input_size : tuple
-        The width and heigth of input images.
+        Width and heigth of input images.
 
     fetching_ratio : float
-        The ratio of the dataset to fetch (between 0 and 1).
+        Ratio of the dataset to fetch (between 0.0 and 1.0).
+
+    validation_split : float
+        Ratio of the training dataset used for validation (between 0.0 and 1.0).
 
     returns
     ----
@@ -70,38 +71,28 @@ def load_data_val_split(
     train_path=DATA_DIR/'train'
     test_path=DATA_DIR/'test'
 
-    emotions_classes = [
-        'neutral',
-        'happy',
-        'angry',
-        'sad',
-        'fear',
-        'disgust',
-        'surprise'
-    ] # Categorical output ordered same as this list
-
     if dataset_type=='train':
         dataset = image_dataset_from_directory(
             directory=train_path,
             labels="inferred",
             label_mode='categorical',
-            class_names=emotions_classes,
-            color_mode='rgb', # TODO Change if neccesary to 'grayscale'
+            class_names=EMOTIONS_CLASSES,
+            color_mode='grayscale', # TODO Change if neccesary to 'rgb'
             batch_size=batch_size,
             image_size=image_size,
             shuffle=True,
-            validation_split=0.2,
+            validation_split=validation_split,
             subset='both',
             seed=SEED
         )
 
         train_ds, train_batch_nb = batch_ratio(
-            tf_dataset=dataset[0],
+            dataset=dataset[0],
             ratio=fetch_ratio
         )
 
         val_ds, val_batch_nb = batch_ratio(
-            tf_dataset=dataset[1],
+            dataset=dataset[1],
             ratio=fetch_ratio
         )
 
@@ -117,8 +108,8 @@ def load_data_val_split(
             directory=test_path,
             labels="inferred",
             label_mode='categorical',
-            class_names=emotions_classes,
-            color_mode='rgb', # TODO Change if neccesary
+            class_names=EMOTIONS_CLASSES,
+            color_mode='grayscale', # TODO Change if neccesary
             batch_size=batch_size,
             image_size=image_size,
             shuffle=True,
@@ -126,7 +117,7 @@ def load_data_val_split(
         )
 
         dataset, test_batch_nb = batch_ratio(
-            tf_dataset=dataset,
+            dataset=dataset,
             ratio=fetch_ratio
         )
 
@@ -138,11 +129,10 @@ def load_data_val_split(
 
     return dataset
 
-def load_data(
-        dataset_type: str = 'train',
-        batch_size: int = 32,
-        image_size: tuple = (112, 112),
-        fetch_ratio: float = 0.2
+def load_data(dataset_type: str = 'train',
+              batch_size: int = 32,
+              image_size: tuple = (48, 48),
+              fetch_ratio: float = 0.2
     ) -> tf.data.Dataset:
     """
     Load the dataset from local directory and transform it in a tensorflow dataset.
@@ -169,17 +159,6 @@ def load_data(
     dataset : tf.PrefetchDataset
         Return a dataset of the given type.
     """
-    emotions_classes = [
-        'neutral',
-        'happy',
-        'anger', # 'angry' for FER-2013
-        'sad',
-        'fear',
-        'disgust',
-        'contempt', # Not in FER-2013
-        'surprise'
-    ] # Categorical output ordered same as this list
-
     dataset_types = ['train', 'val', 'test']
 
     if dataset_type not in dataset_types:
@@ -190,8 +169,8 @@ def load_data(
             directory=DATA_DIR/dataset_type,
             labels="inferred",
             label_mode='categorical',
-            class_names=emotions_classes,
-            color_mode='rgb',
+            class_names=EMOTIONS_CLASSES,
+            color_mode='grayscale', # TODO Change if necessary
             batch_size=batch_size,
             image_size=image_size,
             shuffle=True,
@@ -199,7 +178,7 @@ def load_data(
         )
 
         dataset,dataset_batch_nb = batch_ratio(
-            tf_dataset=dataset,
+            dataset=dataset,
             ratio=fetch_ratio
         )
 
@@ -207,3 +186,45 @@ def load_data(
         print(Fore.WHITE + f"Training dataset: {int(dataset_batch_nb * fetch_ratio)} batches of {batch_size} images." + Style.RESET_ALL)
 
         return dataset
+
+def data_augmentation(train_dataset: tf.data.Dataset,
+                      val_dataset: tf.data.Dataset
+    ) -> tuple[tf.data.Dataset, tf.data.Dataset]:
+    """
+    Apply data augmentation to training dataset.
+
+    returns
+    ----
+    train_ds, val_ds : tuple
+    """
+    data_augment = Sequential([
+            layers.RandomFlip("horizontal"),
+            layers.RandomRotation(0.05, fill_mode='reflect'), # ± 10° maximum on 48px
+            layers.RandomTranslation(0.05, 0.05, fill_mode='reflect'),
+            layers.RandomZoom(height_factor=(-0.05, 0.1),fill_mode='reflect'),  # small zoom since 48px is already small
+            layers.RandomBrightness(0.2), # ± 20% brightness
+            layers.RandomContrast(0.2), # ± 20% contrast
+        ], name="augmentation"
+    )
+
+    def preprocess(image, label):
+        image = tf.cast(image, tf.float32)
+        return image, label
+
+    def augment_and_preprocess(image, label):
+        image = tf.cast(image, tf.float32)
+        image = data_augment(image, training=True)
+        return image, label
+
+    # New augmented datasets
+    train_ds = (train_dataset
+        .map(augment_and_preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+        .prefetch(tf.data.AUTOTUNE)
+    )
+
+    val_ds = (val_dataset
+        .map(preprocess, num_parallel_calls=tf.data.AUTOTUNE)
+        .prefetch(tf.data.AUTOTUNE)
+    )
+
+    return train_ds, val_ds
