@@ -19,3 +19,4 @@ EMOTIONS_CLASSES=['neutral',
                   'fear',
                   'disgust',
                   'surprise']
+NB_OUTPUTS=len(EMOTIONS_CLASSES)
