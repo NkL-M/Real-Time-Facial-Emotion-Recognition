@@ -1,11 +1,11 @@
 """
-Module for training, evaluating and predicting models.
+Module for training, evaluating and make predictions with models.
 """
 
 import time
-import tensorflow as tf
 from colorama import Fore, Style
-from keras import Model, Sequential, layers, Input, regularizers, optimizers, metrics
+import tensorflow as tf
+from keras import Model, Sequential, layers, Input, regularizers, optimizers, losses, metrics
 from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 
 # Transfer learning models
@@ -20,99 +20,129 @@ from emotion_recognition.src.registry import load_model
 #---------------------------#
 #   Models Architectures    #
 #---------------------------#
-def initialize_baseline_model(input_shape : tuple) -> Model:
+def initialize_baseline_model(input_shape: tuple) -> Model:
     """
     Initialize a baseline model architecture.
 
     arg
     ----
     input_shape : tuple
-        Tensor shape
+        - Tensor shape
 
     returns
     ----
     model : Model
-        Tensorflow model initialized
+        - Build tensorflow model.
     """
-    model = Sequential()
-    model.add(Input(shape=input_shape))
-    model.add(layers.Rescaling(1/255))
+    input = Input(shape=input_shape)
 
-    # Hidden Conv Layer
-    model.add(layers.Conv2D(16, kernel_size=(3, 3), padding='same', activation='relu'))
-    model.add(layers.MaxPool2D(pool_size=(2,2)))
+    x = layers.Rescaling(1/255)(input)
+    x = layers.Conv2D(16, kernel_size=3, padding='same', activation='relu')(x)
+    x = layers.MaxPooling2D(pool_size=2)(x)
+    x = layers.Flatten()(x)
+    x = layers.Dense(32, activation='relu')(x)
 
-    # Flatten Layer
-    model.add(layers.Flatten())
+    output = layers.Dense(NB_OUTPUTS, activation='softmax')
 
-    # Final Dense Layers
-    model.add(layers.Dense(32, activation='relu'))
-    model.add(layers.Dense(8, activation='softmax'))
+    model = Model(input, output, name='fer_baseline_cnn')
 
-    print(Fore.GREEN + f"Model successfully initialized" + Style.RESET_ALL)
-
+    print(Fore.GREEN + f"Baseline model successfully initialized" + Style.RESET_ALL)
     print(model.summary())
 
     return model
 
-def initialize_custom_model(input_shape : tuple) -> Model:
+def initialize_custom_model(input_shape: tuple) -> tf.keras.Model:
     """
-    Initialize a custom model architecture.
+    Initialize a tensorflow model.
 
     arg
     ----
     input_shape : tuple
-        Tensor shape
+        - Tensor shape
 
     returns
     ----
-    model : Model
-        Tensorflow model initialized
+    model : tf.keras.Model
+        - Build model architecture
     """
-    # instantiate and input layer
-    model = Sequential()
-    model.add(Input(shape=input_shape))
-    model.add(layers.Rescaling(1/255))
+    reg = regularizers.l2(1e-4)
+    input = Input(shape=input_shape)
+    x = layers.Rescaling(1/255)(input)
 
-    # Hidden Conv Layer 1
-    model.add(layers.Conv2D(32, kernel_size=(3,3), padding='same', activation='relu'))
-    model.add(layers.MaxPool2D(pool_size=(2,2)))
+    # Conv Layer 1
+    x = layers.Conv2D(64, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
 
-    # Hidden Conv Layer 2
-    model.add(layers.Conv2D(64, kernel_size=(3,3), padding='same', activation='relu'))
-    model.add(layers.MaxPool2D(pool_size=(2,2)))
+    # Conv Layer 2
+    x = layers.Conv2D(64, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.MaxPooling2D()(x) # 48 pixels to 24 pixels images
+    x = layers.Dropout(0.25)(x) # layers.SpatialDropout2D(0.25)(x)
 
-    # Hidden Conv Layer 3
-    model.add(layers.Conv2D(128, kernel_size=(3,3), padding='same', activation='relu'))
-    model.add(layers.MaxPool2D(pool_size=(2,2)))
+    # Conv Layer 3
+    x = layers.Conv2D(128, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
 
-    # Flatten Layer
-    model.add(layers.Flatten())
+    # Conv Layer 4
+    x = layers.Conv2D(128, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.MaxPooling2D(2)(x)          # 24 to 12
+    x = layers.Dropout(0.25)(x) # layers.SpatialDropout2D(0.25)(x)
 
-    # Final Dense Layers
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(32, activation='relu'))
-    model.add(layers.Dropout(rate=0.5))
-    model.add(layers.Dense(8, activation='softmax'))
+    # Conv Layer 5
+    x = layers.Conv2D(256, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+
+    # Conv Layer 6
+    x = layers.Conv2D(256, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+
+    # Conv Layer 7
+    x = layers.Conv2D(512, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.MaxPooling2D(2)(x)          # 12 to 6
+    x = layers.Dropout(0.25)(x) # layers.SpatialDropout2D(0.25)(x)
+
+    # Conv Layer 8
+    x = layers.Conv2D(512, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+
+    # Conv Layer 9
+    x = layers.Conv2D(256, kernel_size=3, padding='same', kernel_regularizer=reg, activation='relu')(x) # OLD 512
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(0.25)(x) # layers.SpatialDropout2D(0.25)(x)
+
+    # GAP Layer
+    x = layers.GlobalAveragePooling2D()(x)  # (B, 512)
+
+    # Dense Top Layers
+    x = layers.Dense(512, kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(0.5)(x)
+
+    x = layers.Dense(256, kernel_regularizer=reg, activation='relu')(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(0.4)(x)
+
+    output = layers.Dense(NB_OUTPUTS, activation='softmax')(x)
+
+    model = Model(input, output, name='fer_custom_cnn')
 
     print(Fore.GREEN + f"Model successfully initialized" + Style.RESET_ALL)
-
     print(model.summary())
 
     return model
 
-
-#---------------------#
-#  Transfer Learning  #
-#---------------------#
-def load_transfer_learning_model(
-        model_name='resnet50',
-        input_shape=(112, 112, 3)
+#---------------------------------#
+#  Transfer Learning Architecture #
+#---------------------------------#
+def load_transfer_learning_model(model_name: str = 'resnet50',
+                                 input_shape: tuple = (112, 112, 3)
     ) -> Model:
     """
     Load an already built and trained model from Tensorflow.
 
-    Arg
+    args
     ----
     tl_model_name : str
         - 'vgg16'
@@ -120,10 +150,12 @@ def load_transfer_learning_model(
         - 'efficientnet'
         - 'resnet50_vggface'
 
+    input_shape : tuple
+
     returns
     ----
     model : Model
-        Load pre-trained model.
+        - Load pre-trained model.
     """
     if model_name == 'resnet50':
         model = ResNet50(
@@ -149,13 +181,13 @@ def load_transfer_learning_model(
         )
         print(Fore.GREEN + f"\MobileNetV3Small model loaded" + Style.RESET_ALL)
 
-    elif model_name == 'efficientnetb3':
-        model = EfficientNetB3(
+    elif model_name == 'efficientnet_b0':
+        model = EfficientNetB0(
             weights='imagenet',
             include_top=False,
             input_shape=input_shape
         )
-        print(Fore.GREEN + f"\nEfficientNetB3 model loaded" + Style.RESET_ALL)
+        print(Fore.GREEN + f"\nEfficientNetB0 model loaded" + Style.RESET_ALL)
 
     elif model_name == 'resnet50_vggface_weights':
         model = ResNet50(
@@ -174,97 +206,71 @@ def load_transfer_learning_model(
 
     return model
 
-def initialize_transfer_learning_model(
-        model_name='resnet50',
-        input_shape=(112, 112, 3)
+def initialize_transfer_learning_model(model_name: str = 'resnet50',
+                                       input_shape: tuple = (112, 112, 3)
     ) -> Model:
     """
     Load a transfer learning model, set its parameters as non-trainable,
     and add additional trainable dense layers at the end.
 
-    Arg 'tl_model_name':
+    args
+    ----
+    model_name : str
         - 'vgg16'
         - 'resnet'
         _ 'efficientnet'
 
+    input_shape : tuple
+
 
     returns
     ----
-    tl_model : Model
-    Return a fully structured transfer learning model with frozen weights on its
-    deep layers and with trainable top layers.
+    model : Model
+        - A fully structured transfer learning model with frozen weights on its
+          deep layers and with trainable top layers.
     """
-    model = load_transfer_learning_model(model_name=model_name,
-                                         input_shape=input_shape)
+    tl_model = load_transfer_learning_model(model_name=model_name,
+                                            input_shape=input_shape)
 
-    model.trainable = False  # set layers to be untrainable
+    tl_model.trainable = False  # set layers to be untrainable
 
     print(Fore.BLUE + f"\nModel's weights set to 'untrainable'" + Style.RESET_ALL)
 
     # # Trainable top layers
-    # flatten_layer = layers.Flatten()
-    # dense_layer_1 = layers.Dense(128, activation='relu')
-    # dropout_layer_1 = layers.Dropout(rate=0.2)
-    # dense_layer_2 = layers.Dense(64, activation='relu')
-    # dropout_layer_2 = layers.Dropout(rate=0.2)
-    # dense_layer_3 = layers.Dense(32, activation='relu')
-    # dropout_layer_3 = layers.Dropout(rate=0.5)
-    # output_layer = layers.Dense(8, activation='softmax')
-
-    # # Model Architecture
-    # tl_model = Sequential(
-    #     [model,
-    #      flatten_layer,
-    #      dense_layer_1,
-    #      dropout_layer_1,
-    #      dense_layer_2,
-    #      dropout_layer_2,
-    #      dense_layer_3,
-    #      dropout_layer_3,
-    #      output_layer
-    #     ]
-    # )
-
-    # Replace Flatten with GAP as discussed
     gap_layer         = layers.GlobalAveragePooling2D()
-    dense_layer_1     = layers.Dense(512, kernel_regularizer=regularizers.l2(1e-4))
-    activation_1      = layers.Activation('gelu')
+    dense_layer_1     = layers.Dense(512, kernel_regularizer=regularizers.l2(1e-4), activation='gelu')
     bn_1              = layers.BatchNormalization()
     dropout_layer_1   = layers.Dropout(rate=0.5)
-    dense_layer_2     = layers.Dense(256, kernel_regularizer=regularizers.l2(1e-4))
-    activation_2      = layers.Activation('gelu')
+    dense_layer_2     = layers.Dense(256, kernel_regularizer=regularizers.l2(1e-4), activation='gelu')
     bn_2              = layers.BatchNormalization()
     dropout_layer_2   = layers.Dropout(rate=0.5)
-    output_layer      = layers.Dense(8, activation='softmax')   # TODO raw logits, no softmax
+    output_layer      = layers.Dense(NB_OUTPUTS, activation='softmax')   # TODO raw logits, no softmax
 
     # Model Architecture
-    tl_model = Sequential(
-        [model,
+    model = Sequential(
+        [tl_model,
          gap_layer,
          dense_layer_1,
-         activation_1,
          bn_1,
          dropout_layer_1,
          dense_layer_2,
-         activation_2,
          bn_2,
          dropout_layer_2,
          output_layer
         ]
     )
 
-    print(tl_model.summary())
+    print(model.summary())
 
-    return tl_model
+    return model
 
 
 #---------------------#
 #     Fine Tuning     #
 #---------------------#
-def load_model_for_finetuning(
-        model_name='resnet50',
-        latest_model=True,
-        unfroze_layers=15
+def load_model_for_finetuning(model_name: str = 'efficientnet_b0',
+                              latest_model: bool = True,
+                              unfroze_layers: int = 15
     ) -> Model:
     """
     Load a model saved locally and unfrozen a selected number of layers.
@@ -298,10 +304,8 @@ def load_model_for_finetuning(
 #---------------------#
 #   Model Function    #
 #---------------------#
-def compile_model(
-    model: Model,
-    # trainset: tf.data.Dataset,
-    learning_rate: float = 0.01
+def compile_model(model: Model,
+                  learning_rate: float = 0.01
     ) -> Model:
     """
     Compile model
@@ -314,41 +318,50 @@ def compile_model(
     -----
     model : Model
     """
-    # lr_scheduler = optimizers.schedules.CosineDecay(initial_learning_rate=0.01,
-    #                                                 decay_steps=50 * len((trainset)), # TODO Optimizer V1
+    # lr_scheduler = optimizers.schedules.CosineDecay(initial_learning_rate=learning_rate,
+    #                                                 decay_steps=50 * len((trainset)),
     #                                                 alpha=1e-5)
-    # optimizer = optimizers.SGD(learning_rate=lr_scheduler,
-    #                                  momentum=0.9,
-    #                                  nesterov=True,
-    #                                  weight_decay=5e-4)
 
-    optimizer = optimizers.AdamW(
-        learning_rate=learning_rate,    # 10× lower than Phase 1
-        weight_decay=learning_rate * 4
-        )
+    # optimizer = optimizers.AdamW(
+    #     learning_rate=learning_rate,    # 10× lower than Phase 1
+    #     weight_decay=learning_rate * 4
+    #     )
 
+    lr_scheduler = optimizers.schedules.CosineDecayRestarts(initial_learning_rate=learning_rate,
+                                                            first_decay_steps=20,
+                                                            t_mul=2.0,
+                                                            m_mul=0.9)
+
+    optimizer = optimizers.SGD(learning_rate=lr_scheduler,
+                               momentum=0.9,
+                               nesterov=True,
+                               weight_decay=5e-4)
+
+    loss = losses.CategoricalCrossentropy(label_smoothing=0.1)
+
+    acc = metrics.CategoricalAccuracy(name='accuracy')
     # f1_weighted = metrics.F1Score(average='weighted', name='f1_weighted')
     # f1_macro = metrics.F1Score(average='macro', name='f1_macro')
-    # metric = [f1_weighted, f1_macro]
+    # metric = [f1_weighted, f1_macro] # TODO: Choose which metrics
 
-    model.compile(
-        optimizer=optimizer,
-        loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
-        metrics=['accuracy'] # TODO: Choose which metrics
+    model.compile(optimizer=optimizer,
+                  loss=loss,
+                  metrics=[acc]
     )
 
     print(Fore.GREEN + f"Model successfully compiled" + Style.RESET_ALL)
+
     return model
 
 def train_model(
         model : Model,
-        train_dataset,
-        val_dataset,
-        epochs=10,
-        patience=5,
-        checkpoint=True,
-        reduce_lr=True,
-        save_name='default_model01'
+        train_dataset: tf.data.Dataset,
+        val_dataset: tf.data.Dataset,
+        epochs: int = 10,
+        patience: int = 5,
+        checkpoint: bool = True,
+        reduce_lr: bool = True,
+        save_name: str = 'default_model01'
     ) -> tuple[Model, dict]:
     """
     Train model and save it locally
@@ -356,17 +369,20 @@ def train_model(
     args
     ----
     epochs : int
+        - Number of times the entire dataset passes through the model during training.
 
     patience : int
+        - Number of times the loss doesn't decrease before stopping training.
 
     checkpoint : bool
+        - Wether saving model's weights when loss decrease.
 
     saved_name : str
-
+        - Name with which the model's weights, parameters, metrics will be saved.
 
     returns
     ----
-    model, history : tuple (Model, dict)
+    model, history : tuple
     """
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -400,7 +416,7 @@ def train_model(
 
     if checkpoint:
         model_callbacks.append(model_checkpoints)
-        print(Fore.BLUE + f"\nModel's first checkpoint saved locally as '{timestamp}_{save_name}.h5'" + Style.RESET_ALL)
+        print(Fore.BLUE + f"\nModel's weights will be saved locally as '{timestamp}_{save_name}.weights.h5'" + Style.RESET_ALL)
 
     if reduce_lr:
         model_callbacks.append(reduce_lr_on_plateau)
@@ -408,17 +424,13 @@ def train_model(
     history = model.fit(   # TODO Add tensorboard for monitoring ??
         train_dataset,
         epochs=epochs,
-        batch_size=BATCH_SIZE,
+        # batch_size=BATCH_SIZE, TODO Remove ?? (already in load_data)
+        # class_weight=class_weights, TODO Dict for fixing class imbalance
         callbacks=model_callbacks,
         validation_data=val_dataset,
         verbose=1
     )
 
-    print(Fore.GREEN + f"\nModel sucessfully trained" + Style.RESET_ALL) # TODO add ?? -> + f"Validation metric: {round(history['val_accuracy'][-1], 2)}")
+    print(Fore.GREEN + f"\nModel sucessfully trained" + Style.RESET_ALL)
 
     return model, history
-
-
-#---------------------#
-#  Data Augmentation  # TODO
-#---------------------#
