@@ -4,7 +4,7 @@ from pathlib import Path
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
 DATA_DIR=PROJECT_ROOT/'data'
 MODELS_REGISTRY_DIR=PROJECT_ROOT/'models_registry'
-TRAINED_MODEL=MODELS_REGISTRY_DIR/'saved_models'/'trained_model_fer'
+MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/'trained_model_fer.keras'
 
 # Training args
 NB_CHANNELS=1
