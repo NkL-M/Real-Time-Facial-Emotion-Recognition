@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import tensorflow as tf
 from keras.preprocessing import image # TODO remove if unecessary for predict
@@ -8,18 +9,18 @@ from emotion_recognition.src.registry import save_model, save_results, load_mode
 
 from emotion_recognition.face_detection.face_detection_mediapipe import FaceDetector
 # from emotion_recognition.face_detection import face_detection_opencv
-from emotion_recognition.face_detection.face_landmarks import FacialTracker
+# from emotion_recognition.face_detection.face_landmarks import FacialTracker
 
-def train(model_name: str = 'resnet50',
-          data_ratio: float = 0.2,
-          learning_rate: float = 0.01,
-          epochs: int = 50,
-          patience: int = 10,
-          checkpoint: bool = True,
-          reduce_lr: bool = True,
-          registry: bool =True,
-          save_name: str ='default_model01'
-        ) -> tuple[Model, dict]:
+def training(data_ratio: float = 0.2,
+             learning_rate: float = 0.01,
+             epochs: int = 50,
+             patience: int = 10,
+             checkpoint: bool = True,
+             reduce_lr: bool = True,
+             registry: bool = True,
+             data_aug: bool = True,
+             save_name: str = 'default_model01'
+    ) -> tuple[Model, dict]:
     """
     Load data, train model on training set.
 
@@ -28,7 +29,7 @@ def train(model_name: str = 'resnet50',
     data_ratio : float
         - Ratio of data to load.
 
-    lr : float
+    learning_rate : float
         - Learning rate (hyper-parameter).
 
     patience : inT
@@ -39,7 +40,7 @@ def train(model_name: str = 'resnet50',
         - Save weigths during training.
 
     reduce_lr : bool
-        -
+        - Wether the learning will reduce when loss doesn't decrease
 
     registry : bool
         - Save parameters, last/best validation metric value, and entire model.
@@ -51,45 +52,41 @@ def train(model_name: str = 'resnet50',
     ----
     (model, history) : tuple
     """
-    train_data = load_data(
-        dataset_type='train',
-        batch_size=64,
-        image_size=IMAGE_SIZE,
-        fetch_ratio=data_ratio
-    )
-
-    val_data = load_data(
-        dataset_type='val',
-        batch_size=64,
-        image_size=IMAGE_SIZE,
-        fetch_ratio=data_ratio
-    )
-
-    # train_data, val_data = load_data_val_split(
+    # train_data = load_data(
     #     dataset_type='train',
     #     batch_size=BATCH_SIZE,
     #     image_size=IMAGE_SIZE,
     #     fetch_ratio=data_ratio
     # )
+    # val_data = load_data(
+    #     dataset_type='val',
+    #     batch_size=BATCH_SIZE,
+    #     image_size=IMAGE_SIZE,
+    #     fetch_ratio=data_ratio
+    # )
+
+    train_data, val_data = load_data_val_split(
+        dataset_type='train',
+        batch_size=BATCH_SIZE,
+        image_size=IMAGE_SIZE,
+        fetch_ratio=data_ratio
+    )
+
+    if data_aug:
+        train_data, val_data = data_augmentation(train_data, val_data)
 
     # model = initialize_baseline_model(             # Baseline model architecture
     #     input_shape=INPUT_SHAPE
     # )
 
-    # model = initialize_model(                               # Model architecture
+    # model = initialize_transfer_learning_model(         # Tranfer Learning Model
+    #     model_name=model_name,
     #     input_shape=INPUT_SHAPE
     # )
 
-    model = initialize_transfer_learning_model(         # Tranfer Learning Model
-        model_name=model_name,
-        input_shape=INPUT_SHAPE
-    )
+    model = initialize_custom_model(INPUT_SHAPE)
 
-    model = compile_model(
-        model=model,
-        # trainset=train_data
-        learning_rate=learning_rate
-    )
+    model = compile_model(model=model, learning_rate=learning_rate)
 
     model, history = train_model(
         model=model,
@@ -129,17 +126,17 @@ def train(model_name: str = 'resnet50',
 
     return model, history
 
-def train_fine_tuning(model_name : str,
-                latest_model: bool = False,
-                unfroze_layers: float = 15,
-                data_ratio: float = 0.2,
-                learning_rate: float = 0.01,
-                epochs: int = 50,
-                patience: int = 10,
-                checkpoint: bool = True,
-                reduce_lr: bool = True,
-                registry: bool = True,
-                save_name: str = 'fine_tuning_model01'
+def finetuning(model_name : str,
+               latest_model: bool = False,
+               unfroze_layers: float = 15,
+               data_ratio: float = 0.2,
+               learning_rate: float = 0.01,
+               epochs: int = 50,
+               patience: int = 10,
+               checkpoint: bool = True,
+               reduce_lr: bool = True,
+               registry: bool = True,
+               save_name: str = 'fine_tuning_model01'
             ) -> tuple[Model, dict]:
     """
     Load data, train model on training set.
@@ -187,8 +184,10 @@ def train_fine_tuning(model_name : str,
     )
 
     model = load_model_for_finetuning(model_name=model_name,
-                                        latest_model=latest_model,
-                                        unfroze_layers=unfroze_layers)
+                                      latest_model=latest_model,
+                                      unfroze_layers=unfroze_layers)
+
+    model.summary()
 
     model = compile_model(
         model=model,
@@ -234,27 +233,27 @@ def train_fine_tuning(model_name : str,
 
     return model, history
 
-def evaluate_model(
-        model: Model,
-        test_data_ratio: tf.data.Dataset = 0.2
+def evaluate_model(model: Model,
+                   ratio: float = 0.2
     ) -> float:
     """
     Evaluates model's performance on test dataset.
 
     arg
     ----
-    test_data_ratio : float
+    ratio : float
         - Ratio of the test data to evaluate model on.
 
     returns
     ----
     eval_score : float
     """
-    test_data = load_data(
+    test_data = load_data_val_split(
         dataset_type='test',
         batch_size=BATCH_SIZE,
         image_size=IMAGE_SIZE,
-        fetch_ratio=test_data_ratio
+        fetch_ratio=ratio,
+        validation_split=0.2
     )
 
     eval_score = model.evaluate(test_data)
@@ -263,9 +262,8 @@ def evaluate_model(
 
 def predict(image_path: Path,
             model: Model,
-            # model_name: str = 'resnet50_f02',
-            image_size: tuple = (112, 112)
-        ) -> str:
+            image_size: tuple = (48, 48)
+    ) -> str:
     """
     Predict images by inputing paths.
 
@@ -289,10 +287,11 @@ def predict(image_path: Path,
                      3 : 'Sad',
                      4 : 'Fear',
                      5 : 'Disgust',
-                     6 : 'Surprise'}
+                     6 : 'Contempt',
+                     7 : 'Surprise'}
 
     img = tf.io.read_file(str(image_path))       # img = Image.open(path).convert("RGB")
-    img = tf.image.decode_image(img, channels=3) # img = tf.image.resize(img, size=image_size)
+    img = tf.image.decode_image(img, channels=NB_CHANNELS) # img = tf.image.resize(img, size=image_size)
     img = tf.image.resize(img, size=image_size)  # img = tf.convert_to_tensor(img)
 
     x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape (1, 112, 112, 3)
@@ -301,8 +300,53 @@ def predict(image_path: Path,
     prediction = emotions_dict[prediction_index]
     return prediction
 
-def main():
-    pass
+def final_predict(image_path: Path):
+    model = initialize_transfer_learning_model(         # Tranfer Learning Model
+        model_name='efficientnet_b0',
+        input_shape=INPUT_SHAPE
+    )
 
-if __name__ == '__main__':
+    # Load the weights
+    path_ws = MODELS_REGISTRY_DIR/'saved_weights'/'2026-06-01_22-29-42_custom_cnn_m01_fulldata_epoch32_val_accuracy0.58.weights.h5'
+    model.load_weights(path_ws)
+
+    result = predict(image_path, model)
+    return result
+
+def main():
+    pTime = 0
+    cTime = 0
+    cap = cv2.VideoCapture(0)
+    # cap = cv2.VideoCapture('../../data/videos/video_sad_01.mp4')
+    detector = FaceDetector(detect_conf=0.5)
+
+    while True:
+        success, img = cap.read()
+        img, bbox = detector.find_faces(img, draw=True)
+        print(bbox)
+
+        cTime = time.time()
+        fps = 1/(cTime-pTime)
+        pTime = cTime
+
+        cv2.putText(img=img,
+                    text=f"{str(int(fps))} FPS",
+                    org=(10,70),
+                    fontFace=cv2.FONT_HERSHEY_PLAIN,
+                    fontScale=3,
+                    color=(0, 255, 0),
+                    thickness=4)
+
+        cv2.imshow("Image", img)
+
+        key = cv2.waitKey(30)
+
+        if key == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
     main()
