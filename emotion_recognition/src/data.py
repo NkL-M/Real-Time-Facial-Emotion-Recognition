@@ -35,10 +35,10 @@ def batch_ratio(dataset: tf.data.Dataset,
         raise ValueError(f'Out of range ratio inputed: {ratio}')
 
 def load_data(dataset_type: str = 'train',
-                        batch_size: int = 64,
-                        image_size: tuple = (48, 48),
-                        fetch_ratio: float = 0.2,
-                        validation_split: float = 0.2
+              batch_size: int = 64,
+              image_size: tuple = (48, 48),
+              fetch_ratio: float = 0.2,
+              validation_split: float = 0.2
     ) -> tf.data.Dataset:
     """
     Load the dataset from local directory and transform it in a tensorflow dataset.
