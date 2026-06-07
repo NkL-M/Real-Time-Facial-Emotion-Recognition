@@ -34,7 +34,7 @@ def batch_ratio(dataset: tf.data.Dataset,
     else:
         raise ValueError(f'Out of range ratio inputed: {ratio}')
 
-def load_data_val_split(dataset_type: str = 'train',
+def load_data(dataset_type: str = 'train',
                         batch_size: int = 64,
                         image_size: tuple = (48, 48),
                         fetch_ratio: float = 0.2,
@@ -128,64 +128,6 @@ def load_data_val_split(dataset_type: str = 'train',
         raise ValueError(f"dataset_type not found: '{dataset_type}'")
 
     return dataset
-
-def load_data(dataset_type: str = 'train',
-              batch_size: int = 32,
-              image_size: tuple = (48, 48),
-              fetch_ratio: float = 0.2
-    ) -> tf.data.Dataset:
-    """
-    Load the dataset from local directory and transform it in a tensorflow dataset.
-
-    args
-    ----
-    data_type : str
-        Wether to load the train, val or the test dataset.
-        - 'train'
-        - 'val'
-        - 'test'
-
-    batch_size : int
-        Number of images per batch.
-
-    input_size : tuple
-        The width and heigth of input images.
-
-    fetching_ratio : float
-        The ratio of the dataset to fetch (between 0 and 1).
-
-    returns
-    ----
-    dataset : tf.PrefetchDataset
-        Return a dataset of the given type.
-    """
-    dataset_types = ['train', 'val', 'test']
-
-    if dataset_type not in dataset_types:
-        raise ValueError(f"dataset_type not found: '{dataset_type}'")
-
-    else:
-        dataset = image_dataset_from_directory(
-            directory=DATA_DIR/dataset_type,
-            labels="inferred",
-            label_mode='categorical',
-            class_names=EMOTIONS_CLASSES,
-            color_mode='grayscale', # TODO Change if necessary
-            batch_size=batch_size,
-            image_size=image_size,
-            shuffle=True,
-            seed=SEED
-        )
-
-        dataset,dataset_batch_nb = batch_ratio(
-            dataset=dataset,
-            ratio=fetch_ratio
-        )
-
-        print(Fore.GREEN + f"Sucessfully loaded {int(fetch_ratio*100)}% of the {dataset_type} dataset." + Style.RESET_ALL)
-        print(Fore.WHITE + f"Training dataset: {int(dataset_batch_nb * fetch_ratio)} batches of {batch_size} images." + Style.RESET_ALL)
-
-        return dataset
 
 def data_augmentation(train_dataset: tf.data.Dataset,
                       val_dataset: tf.data.Dataset

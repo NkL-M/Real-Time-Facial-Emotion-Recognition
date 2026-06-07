@@ -3,7 +3,7 @@ import glob
 import pickle
 from colorama import Fore, Style
 from keras import models, Model
-from emotion_recognition.params import *
+from emotion_recognition.params import MODELS_REGISTRY_DIR
 
 
 def save_model(model: Model = None,
