@@ -65,7 +65,7 @@ def training(data_ratio: float = 0.2,
     #     fetch_ratio=data_ratio
     # )
 
-    train_data, val_data = load_data_val_split(
+    train_data, val_data = load_data(
         dataset_type='train',
         batch_size=BATCH_SIZE,
         image_size=IMAGE_SIZE,
@@ -248,7 +248,7 @@ def evaluate_model(model: Model,
     ----
     eval_score : float
     """
-    test_data = load_data_val_split(
+    test_data = load_data(
         dataset_type='test',
         batch_size=BATCH_SIZE,
         image_size=IMAGE_SIZE,
@@ -260,9 +260,8 @@ def evaluate_model(model: Model,
 
     return eval_score
 
-def predict(image_path: Path,
-            model: Model,
-            image_size: tuple = (48, 48)
+def predict_image(image_path: Path,
+                  model: Model,
     ) -> str:
     """
     Predict images by inputing paths.
@@ -279,7 +278,7 @@ def predict(image_path: Path,
     Expected prediction time for an image (%timeit):
     30.8 ms ± 298 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
     """
-    # model = load_model(model_name=model_name)
+    model = load_model(model_name=MODEL_PATH)
 
     emotions_dict = {0 : 'Neutral',
                      1 : 'Happy',
@@ -287,43 +286,30 @@ def predict(image_path: Path,
                      3 : 'Sad',
                      4 : 'Fear',
                      5 : 'Disgust',
-                     6 : 'Contempt',
-                     7 : 'Surprise'}
+                     6 : 'Surprise'}
 
     img = tf.io.read_file(str(image_path))       # img = Image.open(path).convert("RGB")
     img = tf.image.decode_image(img, channels=NB_CHANNELS) # img = tf.image.resize(img, size=image_size)
-    img = tf.image.resize(img, size=image_size)  # img = tf.convert_to_tensor(img)
+    img = tf.image.resize(img, size=INPUT_SHAPE)  # img = tf.convert_to_tensor(img) TODO INPUT_SHAPE
 
-    x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape (1, 112, 112, 3)
+    x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape (1, 112, 112, 1)
     outputs = model(x_preprocessed)             # model.predict(X_new)
     prediction_index = tf.argmax(outputs[0]).numpy()
     prediction = emotions_dict[prediction_index]
     return prediction
 
-def final_predict(image_path: Path):
-    model = initialize_transfer_learning_model(         # Tranfer Learning Model
-        model_name='efficientnet_b0',
-        input_shape=INPUT_SHAPE
-    )
-
-    # Load the weights
-    path_ws = MODELS_REGISTRY_DIR/'saved_weights'/'2026-06-01_22-29-42_custom_cnn_m01_fulldata_epoch32_val_accuracy0.58.weights.h5'
-    model.load_weights(path_ws)
-
-    result = predict(image_path, model)
-    return result
-
 def main():
     pTime = 0
     cTime = 0
     cap = cv2.VideoCapture(0)
-    # cap = cv2.VideoCapture('../../data/videos/video_sad_01.mp4')
     detector = FaceDetector(detect_conf=0.5)
+    model = load_model(model_name='custom_fer_model_01') # TODO Change Model name
 
     while True:
         success, img = cap.read()
-        img, bbox = detector.find_faces(img, draw=True)
-        print(bbox)
+        img, bbox = detector.detect_faces(img=img,
+                                          draw=True,
+                                          fer_model=model)
 
         cTime = time.time()
         fps = 1/(cTime-pTime)

@@ -424,7 +424,6 @@ def train_model(
     history = model.fit(   # TODO Add tensorboard for monitoring ??
         train_dataset,
         epochs=epochs,
-        # batch_size=BATCH_SIZE, TODO Remove ?? (already in load_data)
         # class_weight=class_weights, TODO Dict for fixing class imbalance
         callbacks=model_callbacks,
         validation_data=val_dataset,
