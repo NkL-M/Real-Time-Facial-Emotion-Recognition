@@ -3,34 +3,40 @@ Module for real time face detection using mediapipe.
 """
 
 import tensorflow as tf
+from keras import Model
 import numpy as np
 import time
 import cv2
 import mediapipe as mp
+from emotion_recognition.src.registry import load_model
+
 
 class FaceDetector():
-    def __init__(self,
-                 detect_conf=0.5):
-
+    def __init__(self, detect_conf: float = 0.5):
         self.detect_conf=detect_conf
-
         self.mpDraw = mp.solutions.drawing_utils
         self.mpFaceDetection = mp.solutions.face_detection
         self.faceDetection = self.mpFaceDetection.FaceDetection(min_detection_confidence=self.detect_conf)
 
-    def find_faces(self, img, model, draw=True):
+    def detect_faces(self,
+                     img,
+                     draw: bool = True,
+                     fer_model: Model = None):
         """
         Function that draw bounding boxes on faces detected on an image.
 
         arg
         ----
         draw : bool
-        Choose wether to draw bounding boxes around faces
+            - Choose wether to draw bounding boxes around faces.
+
+        fer_model : Model
+            - Use deep learning model for predicting facial emotion recognition (FER).
 
         returns
         ----
         img, bounding_boxes : tuple
-        Bounding boxes pixel coordinates and image.
+            - Bounding boxes pixel coordinates and image.
         """
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.faceDetection.process(imgRGB)
@@ -45,9 +51,7 @@ class FaceDetector():
                 bounding_boxes.append(bbox)
 
                 if draw:
-                    img = self.precise_bbox(img, bbox, length=30, thickness=8)
-                    pred = self.get_face_crop(img, bbox, model)
-
+                    img = self.draw_boundingbox(img, bbox, length=30, thickness=8)
                     cv2.putText(img=img,
                                 text=f"Visage {id+1} - {int(detection.score[0]*100)} %",
                                 org=(bbox[0],bbox[1]-10),
@@ -56,6 +60,10 @@ class FaceDetector():
                                 color=(255, 255, 255),
                                 thickness=1)
 
+                if fer_model:
+                    pred = self.get_facial_emotion(img=img,
+                                                   bbox=bbox,
+                                                   model=fer_model)
                     cv2.putText(img=img,
                                 text=f"Emotion: {pred}",
                                 org=(bbox[0], bbox[1] + bbox[3] + 50),
@@ -64,13 +72,14 @@ class FaceDetector():
                                 color=(255, 255, 255),
                                 thickness=1)
 
-        return img, bbox, pred # TODO or bounding_boxes
+        return img, bbox # TODO or bounding_boxes
 
-    def precise_bbox(self,
-                     img,
-                     bbox,
-                     length=30,
-                     thickness=10):
+    def draw_boundingbox(self,
+                         img,
+                         bbox: tuple,
+                         length: int = 30,
+                         thickness: int = 10):
+
         x, y, w, h = bbox
         x1, y1 = x + w, y + h
 
@@ -94,11 +103,11 @@ class FaceDetector():
 
         return img
 
-    def get_face_crop(self,
-                      img,
-                      bbox,
-                      model,
-                      pad=0):
+    def get_facial_emotion(self,
+                           img,
+                           bbox,
+                           model: Model,
+                           pad: int = 0):
 
         emotions_dict = {0 : 'Neutre',
                          1 : 'Joie',
@@ -106,8 +115,7 @@ class FaceDetector():
                          3 : 'Tristesse',
                          4 : 'Peur',
                          5 : 'Degout',
-                         6 : 'Mepris',
-                         7 : 'Surprise'}
+                         6 : 'Surprise'}
 
         x1, y1, width, height = bbox
         x2, y2 = x1 + width, y1 + height
@@ -117,30 +125,33 @@ class FaceDetector():
         x2 = min(img.shape[1], x2 + pad)
         y2 = min(img.shape[0], y2 + pad)
 
+        # Inputs
         face_crop = img[y1:y2, x1:x2]
-        face_crop = cv2.resize(face_crop, (112, 112))
-        # face_crop = face_crop.astype(np.float32) / 255.0 # TODO depends if Rescale in model
-        face_crop = np.expand_dims(face_crop, axis=0)  # (1, 224, 224, 3)
-        outputs = model(face_crop)             # model.predict(X_new)
+        face_crop = cv2.resize(face_crop, (48, 48)) # Resize image to 48x48 pixels
+        face_crop = cv2.cvtColor(face_crop, cv2.COLOR_RGB2GRAY) # Change from RGB to Grayscale
+        face_crop = np.expand_dims(face_crop, axis=0)  # (1, 48, 48)
+
+        # Probabilities outputs
+        outputs = model(face_crop, training=False)
+
+        # Prediction
         prediction_index = tf.argmax(outputs[0]).numpy()
         prediction = emotions_dict[prediction_index]
-        print(prediction)
 
         return prediction
-
-from emotion_recognition.src.registry import load_model
 
 def main():
     pTime = 0
     cTime = 0
     cap = cv2.VideoCapture(0)
-    # cap = cv2.VideoCapture('../data/videos/video_sad_01.mp4')
     detector = FaceDetector(detect_conf=0.5)
-    model = load_model(model_name='resnet50_f02') #best_model01
+    model = load_model(model_name='custom_fer_model_01') # TODO Change Model name
 
     while True:
         success, img = cap.read()
-        img, bbox, pred = detector.find_faces(img, model, draw=True)
+        img, bbox = detector.detect_faces(img=img,
+                                          draw=True,
+                                          fer_model=model)
 
         cTime = time.time()
         fps = 1/(cTime-pTime)
