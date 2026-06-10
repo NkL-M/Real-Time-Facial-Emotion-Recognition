@@ -8,7 +8,47 @@ import numpy as np
 import time
 import cv2
 import mediapipe as mp
+from collections import deque, defaultdict
 from emotion_recognition.src.registry import load_model
+from emotion_recognition.params import FRAME_PRED_STRIDE, WINDOW_LENGHT
+
+EMOTION_DICT = {0 : 'Neutre',
+                1 : 'Joie',
+                2 : 'Colere',
+                3 : 'Tristesse',
+                4 : 'Peur',
+                5 : 'Degout',
+                6 : 'Surprise'}
+
+
+class PredictionSmoother():
+    def __init__(self, windown_lenght: int = 10):
+        self.probs_window = deque(maxlen=windown_lenght)
+
+    def update(self, probs: np.ndarray) -> None:
+        """
+        Append to a rolling list a list of probabilities.
+
+        returns
+        -----
+        None
+        """
+        self.probs_window.append(probs)
+
+    def smoothed_prediction(self) -> tuple[str, float]:
+        """
+        Compute a smoothed prediction class of a multiclass classification task
+        and the probability associated to the class.
+
+        returns
+        ----
+        pred_class, pred_prob : tuple[str, float]
+        """
+        smoothed_probs = np.mean(self.probs_window, axis=0)
+        pred_prob = np.amax(smoothed_probs)
+        pred_idx = np.argmax(smoothed_probs)
+        pred_class = EMOTION_DICT[pred_idx]
+        return pred_class, pred_prob
 
 
 class FaceDetector():
@@ -17,11 +57,15 @@ class FaceDetector():
         self.mpDraw = mp.solutions.drawing_utils
         self.mpFaceDetection = mp.solutions.face_detection
         self.faceDetection = self.mpFaceDetection.FaceDetection(min_detection_confidence=self.detect_conf)
+        self.prediction_smoother = defaultdict(lambda: PredictionSmoother(windown_lenght=WINDOW_LENGHT))
+        self.frame_count = 0
+        self.faces_predictions = {}
 
     def detect_faces(self,
-                     img,
-                     draw: bool = True,
-                     fer_model: Model = None):
+                     img: np.ndarray,
+                     model: Model = None,
+                     draw: bool = True
+        ) -> tuple[np.ndarray, tuple]:
         """
         Function that draw bounding boxes on faces detected on an image.
 
@@ -30,8 +74,8 @@ class FaceDetector():
         draw : bool
             - Choose wether to draw bounding boxes around faces.
 
-        fer_model : Model
-            - Use deep learning model for predicting facial emotion recognition (FER).
+        pad : int
+            - How much padding to add to the face crop.
 
         returns
         ----
@@ -40,46 +84,86 @@ class FaceDetector():
         """
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.results = self.faceDetection.process(imgRGB)
+        self.frame_count += 1
+        id, coordinates = None, None # default value when no detected face
         bounding_boxes = []
+        face_crops = []
+        faces_indexes = []
+        inference = self.frame_count < FRAME_PRED_STRIDE or self.frame_count % FRAME_PRED_STRIDE == 0
 
         if self.results.detections:
+
+            detected_ids = set()
+
             for id, detection in enumerate(self.results.detections):
-                boundingBox = detection.location_data.relative_bounding_box
+                bounding_box = detection.location_data.relative_bounding_box
+
                 h, w, c = img.shape
-                bbox = int(boundingBox.xmin * w), int(boundingBox.ymin * h), int(boundingBox.width * w), int(boundingBox.height * h)
-                # bounding_boxes.append([id, bbox, detection.score])
-                bounding_boxes.append(bbox)
+                coordinates = (int(bounding_box.xmin * w),
+                               int(bounding_box.ymin * h),
+                               int(bounding_box.width * w),
+                               int(bounding_box.height * h))
+                bounding_boxes.append(coordinates)
+                detected_ids.add(id)
 
                 if draw:
-                    img = self.draw_boundingbox(img, bbox, length=30, thickness=8)
+                    img = self.draw_boundingbox(img, coordinates, length=100, thickness=8)
+
                     cv2.putText(img=img,
                                 text=f"Visage {id+1} - {int(detection.score[0]*100)} %",
-                                org=(bbox[0],bbox[1]-10),
+                                org=(coordinates[0],coordinates[1]-10),
                                 fontFace=cv2.FONT_HERSHEY_PLAIN,
                                 fontScale=2,
                                 color=(255, 255, 255),
                                 thickness=1)
 
-                if fer_model:
-                    pred = self.get_facial_emotion(img=img,
-                                                   bbox=bbox,
-                                                   model=fer_model)
-                    cv2.putText(img=img,
-                                text=f"Emotion: {pred}",
-                                org=(bbox[0], bbox[1] + bbox[3] + 50),
-                                fontFace=cv2.FONT_HERSHEY_PLAIN,
-                                fontScale=2,
-                                color=(255, 255, 255),
-                                thickness=1)
+                if model and inference:
+                        face_crop = self.preprocess(img, coordinates, pad=30)
+                        face_crops.append(face_crop)   # No batch dim yet, added at tf.statck
+                        faces_indexes.append(id)
 
-        return img, bbox # TODO or bounding_boxes
+            if model and inference and face_crops:
+                prediction_batch = tf.stack(face_crops, axis=0) # Stack faces to predict an entire batch in one forward pass
+                probs = model(prediction_batch, training=False) # Outputs
+
+                for id, face_idx in enumerate(faces_indexes):
+                    self.prediction_smoother[face_idx].update(probs[id])
+                    pred_class, pred_prob = self.prediction_smoother[face_idx].smoothed_prediction()
+                    self.faces_predictions[face_idx] = (pred_class, pred_prob)
+
+            if model:
+                for id, coords in enumerate(bounding_boxes):
+                    if id in self.faces_predictions:
+                        pred_class, pred_prob = self.faces_predictions[id]
+
+                        cv2.putText(img=img,
+                                    text=f"Emotion: {pred_class} - {int(pred_prob*100)}%",
+                                    org=(coords[0], coords[1] + coords[3] + 50),
+                                    fontFace=cv2.FONT_HERSHEY_PLAIN,
+                                    fontScale=2,
+                                    color=(255, 255, 255),
+                                    thickness=1)
+
+                        print(f'{self.frame_count} - Id {id} - {pred_class} : {int(pred_prob*100)}')
+
+            # # Clean up when face leaves frame
+            # lost_ids = set(self.faces_predictions.keys()) - detected_ids
+            # for lost_id in lost_ids:
+            #     del self.last_predictions[lost_id]
+            #     self.prediction_smoother[lost_id].probs_window.clear()
+
+        return img, id#coordinates
+
 
     def draw_boundingbox(self,
-                         img,
+                         img: np.ndarray,
                          bbox: tuple,
                          length: int = 30,
-                         thickness: int = 10):
-
+                         thickness: int = 10
+        ) -> np.ndarray:
+        """
+        Allows to draw precises bounding box around detected faces.
+        """
         x, y, w, h = bbox
         x1, y1 = x + w, y + h
 
@@ -103,20 +187,23 @@ class FaceDetector():
 
         return img
 
-    def get_facial_emotion(self,
-                           img,
-                           bbox,
-                           model: Model,
-                           pad: int = 0):
+    def preprocess(self,
+                   img: np.ndarray,
+                   bbox: tuple,
+                   pad: int = 0
+        ) -> np.ndarray:
+        """
+        Preprocess an inputed image to the right input format for model inference.
 
-        emotions_dict = {0 : 'Neutre',
-                         1 : 'Joie',
-                         2 : 'Colere',
-                         3 : 'Tristesse',
-                         4 : 'Peur',
-                         5 : 'Degout',
-                         6 : 'Surprise'}
+        arg
+        ----
+        pad : int
+            - TODO add docstring
 
+        returns
+        ----
+        face_crop : np.ndarray
+        """
         x1, y1, width, height = bbox
         x2, y2 = x1 + width, y1 + height
 
@@ -125,39 +212,28 @@ class FaceDetector():
         x2 = min(img.shape[1], x2 + pad)
         y2 = min(img.shape[0], y2 + pad)
 
-        # Inputs
         face_crop = img[y1:y2, x1:x2]
         face_crop = cv2.resize(face_crop, (48, 48)) # Resize image to 48x48 pixels
         face_crop = cv2.cvtColor(face_crop, cv2.COLOR_RGB2GRAY) # Change from RGB to Grayscale
-        face_crop = np.expand_dims(face_crop, axis=0)  # (1, 48, 48)
+        # face_crop = tf.expand_dims(face_crop, axis=0)  # (1, 48, 48) TODO remove it since, there is stacking later
 
-        # Probabilities outputs
-        outputs = model(face_crop, training=False)
+        return face_crop
 
-        # Prediction
-        prediction_index = tf.argmax(outputs[0]).numpy()
-        prediction = emotions_dict[prediction_index]
-
-        return prediction
 
 def main():
     pTime = 0
     cTime = 0
     cap = cv2.VideoCapture(0)
     detector = FaceDetector(detect_conf=0.5)
-    model = load_model(model_name='custom_fer_model_01') # TODO Change Model name
+    model = load_model(model_name='custom_fer_model_01') # Predictive model TODO Change Model name
 
     while True:
         success, img = cap.read()
-        img, bbox = detector.detect_faces(img=img,
-                                          draw=True,
-                                          fer_model=model)
-
         cTime = time.time()
         fps = 1/(cTime-pTime)
         pTime = cTime
 
-        cv2.putText(img=img,
+        cv2.putText(img,
                     text=f"{str(int(fps))} FPS",
                     org=(10,70),
                     fontFace=cv2.FONT_HERSHEY_PLAIN,
@@ -165,11 +241,23 @@ def main():
                     color=(0, 255, 0),
                     thickness=4)
 
+        img, id = detector.detect_faces(img, model)
+
+        if id==None:
+            # print('No face detected')
+            cv2.putText(img,
+                        text='No face detected',
+                        org=(1450,70),
+                        fontFace=cv2.FONT_HERSHEY_PLAIN,
+                        fontScale=3,
+                        color=(0, 0, 200),
+                        thickness=4)
+
         cv2.imshow("Image", img)
 
         key = cv2.waitKey(30)
 
-        if key == ord("q"):
+        if key == ord("q"): # Press 'Q' to quit
             break
 
     cap.release()
