@@ -1,15 +1,13 @@
 import cv2
 import numpy as np
 import tensorflow as tf
-from keras.preprocessing import image # TODO remove if unecessary for predict
+
 from emotion_recognition.params import *
 from emotion_recognition.src.data import *
 from emotion_recognition.src.model import *
 from emotion_recognition.src.registry import save_model, save_results, load_model
-
+from emotion_recognition.params import EMOTION_DICT
 from emotion_recognition.face_detection.face_detection_mediapipe import FaceDetector
-# from emotion_recognition.face_detection import face_detection_opencv
-# from emotion_recognition.face_detection.face_landmarks import FacialTracker
 
 def training(data_ratio: float = 0.2,
              learning_rate: float = 0.01,
@@ -261,7 +259,7 @@ def evaluate_model(model: Model,
     return eval_score
 
 def predict_image(image_path: Path,
-                  model: Model,
+                model: Model,
     ) -> str:
     """
     Predict images by inputing paths.
@@ -280,22 +278,14 @@ def predict_image(image_path: Path,
     """
     model = load_model(model_name=MODEL_PATH)
 
-    emotions_dict = {0 : 'Neutral',
-                     1 : 'Happy',
-                     2 : 'Angry',
-                     3 : 'Sad',
-                     4 : 'Fear',
-                     5 : 'Disgust',
-                     6 : 'Surprise'}
-
     img = tf.io.read_file(str(image_path))       # img = Image.open(path).convert("RGB")
-    img = tf.image.decode_image(img, channels=NB_CHANNELS) # img = tf.image.resize(img, size=image_size)
+    img = tf.image.decode_image(img, channels=NB_CHANNELS)
     img = tf.image.resize(img, size=INPUT_SHAPE)  # img = tf.convert_to_tensor(img) TODO INPUT_SHAPE
 
-    x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape (1, 112, 112, 1)
+    x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape (1, 48, 48, 1)
     outputs = model(x_preprocessed)             # model.predict(X_new)
     prediction_index = tf.argmax(outputs[0]).numpy()
-    prediction = emotions_dict[prediction_index]
+    prediction = EMOTION_DICT[prediction_index]
     return prediction
 
 def main():
@@ -307,10 +297,6 @@ def main():
 
     while True:
         success, img = cap.read()
-        img, bbox = detector.detect_faces(img=img,
-                                          draw=True,
-                                          fer_model=model)
-
         cTime = time.time()
         fps = 1/(cTime-pTime)
         pTime = cTime
@@ -323,11 +309,22 @@ def main():
                     color=(0, 255, 0),
                     thickness=4)
 
+        img, id = detector.detect_faces(img, model)
+
+        if id==None:
+            cv2.putText(img,
+                        text='No face detected',
+                        org=(1450,70),
+                        fontFace=cv2.FONT_HERSHEY_PLAIN,
+                        fontScale=3,
+                        color=(0, 0, 200),
+                        thickness=4)
+
         cv2.imshow("Image", img)
 
         key = cv2.waitKey(30)
 
-        if key == ord("q"):
+        if key == ord("q"): # Press 'Q' to quit
             break
 
     cap.release()
