@@ -6,7 +6,7 @@ DATA_DIR=PROJECT_ROOT/'data'
 MODELS_REGISTRY_DIR=PROJECT_ROOT/'models_registry'
 MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/'trained_model_fer.keras'
 
-# Training args
+# Training Args
 NB_CHANNELS=1
 IMAGE_SIZE=(48, 48)
 INPUT_SHAPE=(IMAGE_SIZE[0], IMAGE_SIZE[1], NB_CHANNELS)
@@ -20,3 +20,7 @@ EMOTIONS_CLASSES=['neutral',
                   'disgust',
                   'surprise']
 NB_OUTPUTS=len(EMOTIONS_CLASSES)
+
+# Face Detection Args
+WINDOW_LENGHT=5
+FRAME_PRED_STRIDE=3
