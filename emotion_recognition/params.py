@@ -1,12 +1,13 @@
 from pathlib import Path
 
-#--- Paths variables ---#
+# --- Paths --- #
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
 DATA_DIR=PROJECT_ROOT/'data'
 MODELS_REGISTRY_DIR=PROJECT_ROOT/'models_registry'
-MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/'trained_model_fer.keras'
+FER_MODEL='custom_fer_model'
+FER_MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/f'*{FER_MODEL}*.keras'
 
-#--- Model variables ---#
+# --- Model Training variables --- #
 NB_CHANNELS=1
 IMAGE_SIZE=(48, 48)
 INPUT_SHAPE=(IMAGE_SIZE[0], IMAGE_SIZE[1], NB_CHANNELS)
@@ -28,6 +29,6 @@ EMOTIONS_CLASSES=['neutral',
                   'surprise']
 NB_OUTPUTS=len(EMOTIONS_CLASSES)
 
-#--- Face Detection variables ---#
+# --- Facial Emotion Detection --- #
 WINDOW_LENGHT=5
 FRAME_PRED_STRIDE=3
