@@ -135,16 +135,16 @@ This dataset consisted of:
 ## Methodological Approach
 
 ### 1 - Preprocessing
---
+The images from the dataset had vastly different sizes/resolutions, thus for the preprocessing, we opted for an offline preprocessing with 2 different techniques:
   * A _resize_ of the images in 48 by 48 pixels
 
---
+In the end, we settled with the resize preprocessing since it performed slightly better than the random crop while avoiding some unfortunate cases where the crop could randomly land in a location where the image would be less be prone to show patterns of possible AI generation.
 
 ### 2 - Data Augmentation
 Class imbalance
 
 ### 2 - Evaluation Metric
-For this, I chose **accuracy** as the metric for our models since --
+We chose **accuracy** as the metric for our models since we wanted to have as little _False Positive_ and _False Negative_ as possible.
 
 ### 3 - Results
 We tested multiple deep learning models architectures to compare them and select the ones that yielded the best results.
