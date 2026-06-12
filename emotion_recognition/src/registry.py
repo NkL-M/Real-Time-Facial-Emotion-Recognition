@@ -48,7 +48,7 @@ def save_results(params: dict,
 
 
 def load_model(model_name: str = 'default-model01',
-               latest_model: bool = True
+               latest_model: bool = True,
     ) -> Model:
     """
     Load a saved model stored on disk
@@ -59,7 +59,7 @@ def load_model(model_name: str = 'default-model01',
         - Load latest one according to timestamp.
         If `False`, specify model full name in `model_name` with timestamp `Years-Months-Days_Hours-Minutes-Seconds`.
 
-        Exemple: `model_name`= `'2026-01-31_08-37-58_default-model01'`
+        Exemple: `model_name='2026-01-31_08-37-58_default-model01'`
 
     returns
     ----
