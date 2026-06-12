@@ -48,7 +48,7 @@ def save_results(params: dict,
 
 
 def load_model(model_name: str = 'default-model01',
-               latest_model: bool = True,
+               latest_model: bool = True
     ) -> Model:
     """
     Load a saved model stored on disk
