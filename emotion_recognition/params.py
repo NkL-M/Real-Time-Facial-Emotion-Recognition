@@ -6,6 +6,7 @@ DATA_DIR=PROJECT_ROOT/'data'
 MODELS_REGISTRY_DIR=PROJECT_ROOT/'models_registry'
 FER_MODEL='custom_fer_model'
 FER_MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/f'*{FER_MODEL}*.keras'
+ONNX_MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/'custom_fer_model_1.onnx'
 
 # --- Model Training variables --- #
 NB_CHANNELS=1
@@ -32,3 +33,4 @@ NB_OUTPUTS=len(EMOTIONS_CLASSES)
 # --- Facial Emotion Detection --- #
 WINDOW_LENGHT=5
 FRAME_PRED_STRIDE=3
+CONFIDENCE_THRESHOLD=0.3
