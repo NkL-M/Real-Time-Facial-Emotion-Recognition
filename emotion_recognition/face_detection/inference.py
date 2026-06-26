@@ -4,13 +4,6 @@ Model Inference Module for Facial Emotion Recognition (FER).
 This module provides a class and utilities for performing inference using a pre-trained
 Facial Emotion Recognition (FER) model. It supports ONNX runtime for efficient inference
 and includes preprocessing and prediction methods.
-
-Dependencies:
-    - OpenCV (cv2)
-    - NumPy (np)
-    - ONNX Runtime (ort)
-    - Keras (for model loading, if needed)
-    - Custom utilities from `emotion_recognition.params` and `emotion_recognition.src.registry`
 """
 
 import cv2
@@ -19,7 +12,7 @@ import onnxruntime as ort
 
 from keras import Model
 from pathlib import Path
-from emotion_recognition.params import EMOTION_DICT, EMOTIONS_CLASSES, FER_MODEL, IMAGE_SIZE, ONNX_MODEL_PATH
+from emotion_recognition.params import IMAGE_SIZE, ONNX_MODEL_PATH, FER_MODEL, EMOTION_DICT, EMOTIONS_CLASSES
 from emotion_recognition.src.registry import load_tf_model
 
 class FERModel():
