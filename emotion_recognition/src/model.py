@@ -15,7 +15,7 @@ from keras.applications.efficientnet import EfficientNetB0, EfficientNetB3
 
 # Project's packages
 from emotion_recognition.params import *
-from emotion_recognition.src.registry import load_model
+from emotion_recognition.src.registry import load_tf_model
 
 #---------------------------#
 #   Models Architectures    #
@@ -288,7 +288,7 @@ def load_model_for_finetuning(model_name: str = 'efficientnet_b0',
     model : Model
         - Model with unfrozen layers.
     """
-    model = load_model(model_name=model_name, latest_model=latest_model)
+    model = load_tf_model(model_name=model_name, latest_model=latest_model)
 
     model_backbone = model.layers[0]
 
@@ -339,14 +339,13 @@ def compile_model(model: Model,
 
     loss = losses.CategoricalCrossentropy(label_smoothing=0.1)
 
-    acc = metrics.CategoricalAccuracy(name='accuracy')
-    # f1_weighted = metrics.F1Score(average='weighted', name='f1_weighted')
-    # f1_macro = metrics.F1Score(average='macro', name='f1_macro')
-    # metric = [f1_weighted, f1_macro] # TODO: Choose which metrics
+    accuracy = metrics.CategoricalAccuracy(name='accuracy')
+    f1_macro = metrics.F1Score(average='macro', name='f1_macro')
 
     model.compile(optimizer=optimizer,
                   loss=loss,
-                  metrics=[acc]
+                  metrics=[accuracy],
+                  weighted_metrics=[f1_macro]
     )
 
     print(Fore.GREEN + f"Model successfully compiled" + Style.RESET_ALL)
@@ -394,8 +393,8 @@ def train_model(
 
     model_checkpoints = ModelCheckpoint(
                 filepath = str(MODELS_REGISTRY_DIR / 'saved_weights' /
-                    f'{timestamp}_{save_name}_epoch{{epoch:02d}}_val_accuracy{{val_accuracy:.2f}}.weights.h5'),
-                monitor='val_accuracy', # monitor='val_f1_weighted', TODO: Which monitor metric
+                    f'{timestamp}_{save_name}_epoch{{epoch:02d}}_val_f1_macro{{val_f1_macro:.2f}}.weights.h5'),
+                monitor='val_f1_macro', # 'val_accuracy', TODO: Which monitor metric
                 save_best_only=True,
                 save_weights_only=True,
                 mode='max',
