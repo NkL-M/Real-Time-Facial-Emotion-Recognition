@@ -1,20 +1,22 @@
 import cv2
 import numpy as np
 import tensorflow as tf
-# from io import BytesIO
-# from PIL import Image
+from io import BytesIO
+from PIL import Image
 from colorama import Fore, Style
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from emotion_recognition.interface.main import predict_image
-from emotion_recognition.src.registry import load_model
-from emotion_recognition.params import MODEL_PATH, NB_CHANNELS, INPUT_SHAPE, FER_MODEL
+from emotion_recognition.src.registry import load_tf_model
+from emotion_recognition.params import NB_CHANNELS, INPUT_SHAPE, FER_MODEL, EMOTION_DICT
+from emotion_recognition.face_detection.face_detection import FaceDetector
+
 
 
 app = FastAPI()
 app.state.model = None
-# app.state.face_detector = FaceDetector()
+app.state.face_detector = FaceDetector()
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,7 +32,7 @@ def get_model():
     """
     if app.state.model is None:
         try:
-            app.state.model = load_model(FER_MODEL)
+            app.state.model = load_tf_model(FER_MODEL)
             print(Fore.GREEN + "\nModel loaded successfully" + Style.RESET_ALL)
         except Exception as e:
             print(Fore.RED + f"\nError loading model: {e}" + Style.RESET_ALL)
@@ -44,24 +46,17 @@ def root():
     return {"status": "Hello, the API is alive!"}
 
 
-@app.get("/predict")
+@app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     model = get_model()
-    emotions_dict = {0 : 'Neutral',
-                     1 : 'Happy',
-                     2 : 'Angry',
-                     3 : 'Sad',
-                     4 : 'Fear',
-                     5 : 'Disgust',
-                     6 : 'Surprise'}
 
     try:
         content = await file.read()
-        # img = Image.open(BytesIO(content))
-        # img.verify()
-        # img = Image.open(BytesIO(content)).convert("RGB")
+        img = Image.open(BytesIO(content))
+        img.verify()
+        img = Image.open(BytesIO(content)).convert("RGB")
 
-        img = tf.io.read_file(file)
+        # img = tf.io.read_file(file)
         img = tf.image.decode_image(img, channels=NB_CHANNELS)
     except Exception:
         raise HTTPException(
@@ -72,16 +67,11 @@ async def predict(file: UploadFile = File(...)):
     img = tf.image.resize(img, size=INPUT_SHAPE)
     x_preprocessed = tf.expand_dims(input=img, axis=0)
 
-    #oldddd
-    face_crop = cv2.resize(face_crop, (48, 48)) # Resize img to 48x48 pixels
-    face_crop = cv2.cvtColor(face_crop, cv2.COLOR_RGB2GRAY) # Change from rgb to grayscale
-    # face_crop = tf.expand_dims(face_crop, axis=0)  # (1, 48, 48) TODO remove it since, there is stacking later
-
 
     try:
         outputs = model(x_preprocessed)
         prediction_index = tf.argmax(outputs[0]).numpy()
-        prediction = emotions_dict[prediction_index]
+        prediction = EMOTION_DICT[prediction_index]
     except Exception as e:
         print(Fore.RED + f"\nPrediction error: {e}" + Style.RESET_ALL)
         raise HTTPException(status_code=500, detail="Prediction failed")
@@ -90,39 +80,62 @@ async def predict(file: UploadFile = File(...)):
         "Emotion": prediction
     }
 
-def predict(img,
-            bbox,
-            model,
-            pad=0):
 
-    # emotions_dict = {0 : 'Neutre',
-    #                  1 : 'Joie',
-    #                  2 : 'Colere',
-    #                  3 : 'Tristesse',
-    #                  4 : 'Peur',
-    #                  5 : 'Degout',
-    #                  6 : 'Surprise'}
+from pydantic import BaseModel
+from typing import List
 
-    # x1, y1, width, height = bbox
-    # x2, y2 = x1 + width, y1 + height
+class EmotionScore(BaseModel):
+    label: str
+    confidence: float
 
-    # x1 = max(0, x1 - pad)
-    # y1 = max(0, y1 - pad)
-    # x2 = min(img.shape[1], x2 + pad)
-    # y2 = min(img.shape[0], y2 + pad)
+class FaceResult(BaseModel):
+    bounding_box: dict       # {x, y, width, height}
+    predicted_emotion: str
+    confidence: float
+    all_scores: List[EmotionScore]
+    is_confident: bool       # see point 3
+    inference_time_ms: float
 
-    # # Inputs
-    # face_crop = img[y1:y2, x1:x2]
-    # face_crop = cv2.resize(face_crop, (48, 48)) # Resize image to 48x48 pixels
-    # face_crop = cv2.cvtColor(face_crop, cv2.COLOR_RGB2GRAY) # Change from RGB to Grayscale
-    # face_crop = np.expand_dims(face_crop, axis=0)  # (1, 48, 48)
+class AnalyzeResponse(BaseModel):
+    faces_detected: int
+    results: List[FaceResult]
+    image_width: int
+    image_height: int
 
-    # # Probabilities outputs
-    # outputs = model(face_crop, training=False)
+# @app.post("/analyze", response_model=AnalyzeResponse)
+# async def analyze(image: UploadFile = File(...)):
+#     """
+#     Detects faces and predicts emotions for each detected face.
 
-    # # Prediction
-    # prediction_index = tf.argmax(outputs[0]).numpy()
-    # prediction = emotions_dict[prediction_index]
+#     Returns bounding boxes, per-class confidence scores, and
+#     a confidence flag indicating whether the prediction should
+#     be trusted.
+#     """
+#     img_array = await read_image(image)
+#     # faces = detect_faces(img_array)          # MediaPipe
+#     faces = app.state.face_detector.detect_faces(img_array)
 
-    # return prediction
-    pass
+#     results = []
+#     for face in faces:
+#         cropped = preprocess(face, img_array)
+#         start = time.time()
+#         scores = run_inference(cropped)       # ONNX session
+#         inference_time = (time.time() - start) * 1000
+
+#         top_label, top_conf = get_top_prediction(scores)
+
+#         results.append(FaceResult(
+#             bounding_box=face.bbox,
+#             predicted_emotion=top_label,
+#             confidence=top_conf,
+#             all_scores=[EmotionScore(label=l, confidence=c) for l, c in scores.items()],
+#             is_confident=top_conf >= CONFIDENCE_THRESHOLD,
+#             inference_time_ms=round(inference_time, 2)
+#         ))
+
+#     return AnalyzeResponse(
+#         faces_detected=len(faces),
+#         results=results,
+#         image_width=img_array.shape[1],
+#         image_height=img_array.shape[0]
+#     )

@@ -5,20 +5,21 @@ import tensorflow as tf
 from emotion_recognition.params import *
 from emotion_recognition.src.data import *
 from emotion_recognition.src.model import *
-from emotion_recognition.src.registry import save_model, save_results, load_model
+from emotion_recognition.src.registry import save_model, save_results, load_tf_model
 from emotion_recognition.params import EMOTION_DICT
 from emotion_recognition.face_detection.face_detection import FaceDetector
 
-def training(data_ratio: float = 0.2,
-             learning_rate: float = 0.01,
-             epochs: int = 50,
-             patience: int = 10,
-             checkpoint: bool = True,
-             reduce_lr: bool = True,
-             registry: bool = True,
-             data_aug: bool = True,
-             class_weights: bool = True,
-             save_name: str = 'default_model01'
+def training(
+    data_ratio: float = 0.2,
+    learning_rate: float = 0.01,
+    epochs: int = 50,
+    patience: int = 10,
+    checkpoint: bool = True,
+    reduce_lr: bool = True,
+    registry: bool = True,
+    data_aug: bool = True,
+    class_weights: bool = True,
+    save_name: str = 'default_model01'
     ) -> tuple[Model, dict]:
     """
     Load data, train model on training set.
@@ -117,18 +118,19 @@ def training(data_ratio: float = 0.2,
 
     return model, history
 
-def finetuning(model_name : str,
-               latest_model: bool = False,
-               unfroze_layers: float = 15,
-               data_ratio: float = 0.2,
-               learning_rate: float = 0.01,
-               epochs: int = 50,
-               patience: int = 10,
-               checkpoint: bool = True,
-               reduce_lr: bool = True,
-               registry: bool = True,
-               save_name: str = 'fine_tuning_model01'
-            ) -> tuple[Model, dict]:
+def finetuning(
+    model_name : str,
+    latest_model: bool = False,
+    unfroze_layers: float = 15,
+    data_ratio: float = 0.2,
+    learning_rate: float = 0.01,
+    epochs: int = 50,
+    patience: int = 10,
+    checkpoint: bool = True,
+    reduce_lr: bool = True,
+    registry: bool = True,
+    save_name: str = 'fine_tuning_model01'
+    ) -> tuple[Model, dict]:
     """
     Load data, train model on training set.
 
@@ -223,8 +225,9 @@ def finetuning(model_name : str,
 
     return model, history
 
-def evaluate_model(model: Model,
-                   ratio: float = 0.2
+def evaluate_model(
+    model: Model,
+    ratio: float = 0.2
     ) -> float:
     """
     Evaluates model's performance on test dataset.
@@ -250,8 +253,9 @@ def evaluate_model(model: Model,
 
     return eval_score
 
-def predict_image(image_path: Path,
-                  model: Model
+def predict_image(
+    image_path: Path,
+    model: Model
     ) -> str:
     """
     Predict images by inputing paths.
@@ -285,7 +289,7 @@ def main():
     cTime = 0
     cap = cv2.VideoCapture(0)
     detector = FaceDetector(detect_conf=0.5)
-    model = load_model(FER_MODEL)
+    model = load_tf_model(FER_MODEL)
 
     while True:
         success, img = cap.read()
