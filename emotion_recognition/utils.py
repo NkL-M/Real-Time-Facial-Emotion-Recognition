@@ -1,4 +1,10 @@
-""" Module for various functions for plotting. """
+"""
+Model Evaluation and Visualization Utilities Module.
+
+This module provides utility functions for evaluating and visualizing the performance of
+a trained emotion recognition model. It includes tools for generating confusion matrices,
+classification reports, and training history plots (loss and accuracy curves).
+"""
 
 import time
 import numpy as np
@@ -17,7 +23,16 @@ from emotion_recognition.params import EMOTIONS_CLASSES
 
 def plot_loss_accuracy(history: dict):
     """
-    Function to plot the loss and accuracy.
+    Plots the training and validation loss and accuracy curves from a model's training history.
+
+    Args
+    ----
+    history : dict
+        - Training history object from a Keras/TensorFlow model fit.
+
+    Returns
+    ----
+    None
     """
     fig, ax = plt.subplots(1,2, figsize=(20,7))
 
@@ -52,7 +67,18 @@ def plot_loss_accuracy(history: dict):
 
 def classif_report(model: Model) -> None:
     """
-    Print a model's classification report.
+    Evaluates the model on the test dataset, computes precision, recall, F1-score,
+    and support for each emotion class, and prints a detailed classification report.
+
+    Args
+    ----
+    model : Model
+        - A trained Keras/TensorFlow model for emotion classification.
+
+    Returns
+    ----
+    None
+        - Prints the classification report to the console.
     """
     dataset = load_data(dataset_type='test', fetch_ratio=1.0)
 
@@ -72,12 +98,20 @@ def classif_report(model: Model) -> None:
 
 def conf_matrix(model: Model, normalize: bool = True) -> None :
     """
-    Print a model's confusion matrix.
+    Computes, plots, and displays a confusion matrix for a given model using the test dataset.
 
-    arg
+    This function evaluates the model on the test dataset, computes the confusion matrix,
+    and visualizes it as a heatmap.
+
+    Arg
     ----
-    normalize : bool
-        If `normalize=False`, counts values.
+    normalize : bool (optional)
+        - If True, normalizes the confusion matrix by row.
+        - If False, displays raw counts. Defaults to `True`.
+
+    Returns
+    ----
+    None
     """
     dataset = load_data(dataset_type='test', fetch_ratio=1.0)
 
@@ -131,22 +165,21 @@ def tf_model_avg_inference_time(model_path: Path,
 
     Args
     ----
-    model_path : Path)
+    model_path : Path
         - Path to the model file.
 
     model_format : str (optional)
         - Format of the model, either 'TF' (TensorFlow) or 'ONNX'. Defaults to 'TF'.
 
-    Returns:
-        None: Prints the average inference time in milliseconds to the console.
+    Returns
+    ----
+    None
+        - Prints the average inference time in milliseconds.
 
-    Raises:
-        ValueError: If an unsupported `model_format` is provided.
-
-    Notes:
-        - The warmup phase consists of 10 inference runs to avoid cold-start bias.
-        - The dummy input is a random array of shape (1, 48, 48, 1) with dtype float32.
-        - For ONNX models, the `CPUExecutionProvider` is used for inference.
+    Raises
+    ----
+    ValueError
+        - If an unsupported `model_format` is provided.
     """
     model_format = model_format.upper()
     formats = ['TF', 'ONNX']
