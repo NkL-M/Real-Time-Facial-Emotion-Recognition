@@ -106,9 +106,9 @@ make run_api
 ```
 
 ## Dataset Used
-The dataset used for this project is [FER-2013](https://www.kaggle.com/datasets/msambare/fer2013) downloaded from Kaggle. It is made of 35 887 grayscale images of faces, all in a 48x48 pixels format.
+The dataset used for this project is [FER-2013](https://www.kaggle.com/datasets/msambare/fer2013), which for this project was downloaded from Kaggle. It is made of 35 887 grayscale images of faces, all in a 48x48 pixels format.
 
-This dataset was split in 7 emotion classes:
+Split in 7 facial emotion classes:
 - Neutral (6198 images)
 - Happy (8989 images)
 - Angry (4953 images)
@@ -117,15 +117,14 @@ This dataset was split in 7 emotion classes:
 - Disgust (547 images)
 - Surprise (4002 images)
 
-This dataset consisted of:
+For the training and testing, the dataset was split as followed:
 - 22968 images for the training set
 - 5741 images for the validation set
 - 7178 images for the test set
 
 ## Stack
-
 * Language: Python (3.10.6)
-* DL Framework: TensorFlow
+* DL Framework: TensorFlow / Keras
 * Face Detection: Mediapipe
 * API Framework: FastAPI
 * Containerization: Docker
