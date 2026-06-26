@@ -9,8 +9,8 @@ import time
 import cv2
 import mediapipe as mp
 from collections import deque, defaultdict
-from emotion_recognition.src.registry import load_model
-from emotion_recognition.params import EMOTION_DICT, FRAME_PRED_STRIDE, WINDOW_LENGHT, FER_MODEL, IMAGE_SIZE
+from emotion_recognition.src.registry import load_tf_model
+from emotion_recognition.params import EMOTION_DICT, FRAME_PRED_STRIDE, WINDOW_LENGHT, FER_MODEL, IMAGE_SIZE, EMOTIONS_CLASSES
 
 
 class PredictionSmoother():
@@ -77,12 +77,13 @@ class FaceDetector():
         id, coordinates = None, None # default value when no detected face
         bounding_boxes = []
         face_crops = []
-        faces_indexes = []
+        detected_ids = set()
+        # faces_indexes = []
         inference = (self.frame_count < FRAME_PRED_STRIDE or  # Predict every 3 frame to reduce compute load
                      self.frame_count % FRAME_PRED_STRIDE==0) # Predict frame 1 and 2 as the first latest preds
 
         if self.results.detections:
-            detected_ids = set()
+            # detected_ids = set()
             for id, detection in enumerate(self.results.detections):
                 bounding_box = detection.location_data.relative_bounding_box
 
@@ -106,15 +107,15 @@ class FaceDetector():
                                 thickness=1)
 
                 if model and inference:
-                        face_crop = self.preprocess(img, coordinates, pad=30)
-                        face_crops.append(face_crop)
-                        faces_indexes.append(id)
+                    face_crop = self.preprocess(img, coordinates, pad=30)
+                    face_crops.append(face_crop)
+                    # faces_indexes.append(id)
 
             if model and inference and face_crops:
                 prediction_batch = tf.stack(face_crops, axis=0) # Stack faces to predict entire batch in 1 forward pass, adds batch dim
                 probs = model(prediction_batch, training=False) # Probas outputs
 
-                for id, face_idx in enumerate(faces_indexes):
+                for id, face_idx in enumerate(detected_ids): # TODO Old == (faces_indexes)
                     self.prediction_smoother[face_idx].update(probs[id])
                     pred_class, pred_prob = self.prediction_smoother[face_idx].smoothed_prediction()
                     self.faces_predictions[face_idx] = (pred_class, pred_prob)
@@ -133,9 +134,9 @@ class FaceDetector():
                                     text=f"Emotion: {pred_class} - {int(pred_prob*100)}%",
                                     org=(coords[0], coords[1] + coords[3] + 50),
                                     fontFace=cv2.FONT_HERSHEY_PLAIN,
-                                    fontScale=2,
+                                    fontScale=3,
                                     color=text_color,
-                                    thickness=1)
+                                    thickness=2)
 
             # Clean up when face leaves frame
             lost_ids = set(self.faces_predictions.keys()) - detected_ids
@@ -215,10 +216,15 @@ def main():
     cTime = 0
     cap = cv2.VideoCapture(0)
     detector = FaceDetector(detect_conf=0.5)
-    model = load_model(model_name=FER_MODEL)
+    model = load_tf_model(model_name=FER_MODEL)
 
     while True:
+        # t0 = time.time()
         success, img = cap.read()
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+        # t1 = time.time()
         cTime = time.time()
         fps = 1/(cTime-pTime)
         pTime = cTime
@@ -231,8 +237,10 @@ def main():
                     color=(0, 255, 0),
                     thickness=4)
 
-        img, id, predictions = detector.detect_faces(img, model)
+        # t2 = time.time()
 
+        img, id, predictions = detector.detect_faces(img, model)
+        # t3 = time.time()
         if id==None:
             cv2.putText(img,
                         text='No face detected',
@@ -244,6 +252,9 @@ def main():
 
         cv2.imshow("Real-Time FER", img)
 
+        # t4 = time.time()
+        # print(f"Capture: {(t1-t0)*1000:.1f}ms | MediaPipe: {(t2-t1)*1000:.1f}ms | "
+        #         f"CNN: {(t3-t2)*1000:.1f}ms | Display: {(t4-t3)*1000:.1f}ms")
         key = cv2.waitKey(30)
 
         if key == ord("q"): # Press 'Q' to quit
