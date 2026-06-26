@@ -1,8 +1,12 @@
 import time
 import glob
 import pickle
+import onnx
+import tensorflow as tf
+import tf2onnx
 from colorama import Fore, Style
 from keras import models, Model
+
 from emotion_recognition.params import MODELS_REGISTRY_DIR
 
 
@@ -47,7 +51,7 @@ def save_results(params: dict,
     print(Fore.BLUE + f"\nResults saved locally" + Style.RESET_ALL)
 
 
-def load_model(model_name: str = 'default-model01',
+def load_tf_model(model_name: str = 'default-model01',
                latest_model: bool = True
     ) -> Model:
     """
@@ -84,3 +88,33 @@ def load_model(model_name: str = 'default-model01',
     print(Fore.GREEN + f"\nModel loaded from local disk, from the following path: {model_path}" + Style.RESET_ALL)
 
     return model
+
+
+def export_tf_to_onnx(model_name: str) -> None:
+    """
+    Export a Tensorflow model to the ONNX format for faster inference.
+    """
+    model = load_tf_model(model_name)
+
+    spec = (
+        tf.TensorSpec(
+            model.inputs[0].shape,
+            model.inputs[0].dtype,
+            name="input",
+        ),
+    )
+
+    onnx_model_keras, _ = tf2onnx.convert.from_keras(
+        model,
+        input_signature=spec,
+        opset=13
+    )
+
+    onnx_model_path = MODELS_REGISTRY_DIR / 'saved_models' / f'{model_name}_v2.onnx'
+
+    with open(onnx_model_path, "wb") as f:
+        f.write(onnx_model_keras.SerializeToString())
+
+    onnx.checker.check_model(onnx.load(onnx_model_path))
+
+    print(Fore.GREEN + f"\nONNX Model exported on local disk, at the following path: {onnx_model_path}" + Style.RESET_ALL)
