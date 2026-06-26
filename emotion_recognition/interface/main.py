@@ -7,7 +7,7 @@ from emotion_recognition.src.data import *
 from emotion_recognition.src.model import *
 from emotion_recognition.src.registry import save_model, save_results, load_model
 from emotion_recognition.params import EMOTION_DICT
-from emotion_recognition.face_detection.face_detection_mediapipe import FaceDetector
+from emotion_recognition.face_detection.face_detection import FaceDetector
 
 def training(data_ratio: float = 0.2,
              learning_rate: float = 0.01,
@@ -17,6 +17,7 @@ def training(data_ratio: float = 0.2,
              reduce_lr: bool = True,
              registry: bool = True,
              data_aug: bool = True,
+             class_weights: bool = True,
              save_name: str = 'default_model01'
     ) -> tuple[Model, dict]:
     """
@@ -30,7 +31,7 @@ def training(data_ratio: float = 0.2,
     learning_rate : float
         - Learning rate (hyper-parameter).
 
-    patience : inT
+    patience : int
         - Number of times validation metric not-improving before stopping training.
         Also correspond to the warm-up period.
 
@@ -43,6 +44,11 @@ def training(data_ratio: float = 0.2,
     registry : bool
         - Save parameters, last/best validation metric value, and entire model.
 
+    data_aug : bool
+
+    class_weights : bool
+        - Class weight added to each image for handling class imbalance
+
     save_name : str
         - Name to which the registered model's data will be saved as.
 
@@ -50,40 +56,27 @@ def training(data_ratio: float = 0.2,
     ----
     (model, history) : tuple
     """
-    # train_data = load_data(
-    #     dataset_type='train',
-    #     batch_size=BATCH_SIZE,
-    #     image_size=IMAGE_SIZE,
-    #     fetch_ratio=data_ratio
-    # )
-    # val_data = load_data(
-    #     dataset_type='val',
-    #     batch_size=BATCH_SIZE,
-    #     image_size=IMAGE_SIZE,
-    #     fetch_ratio=data_ratio
-    # )
+    if class_weights or data_aug:
+        train_data, val_data = class_weight_and_augment(data_ratio=data_ratio,
+                                                   data_aug=data_aug,
+                                                   class_weights=class_weights)
 
-    train_data, val_data = load_data(
-        dataset_type='train',
-        batch_size=BATCH_SIZE,
-        image_size=IMAGE_SIZE,
-        fetch_ratio=data_ratio
-    )
-
-    if data_aug:
-        train_data, val_data = data_augmentation(train_data, val_data)
+    else:
+        train_data, val_data = load_data(dataset_type='train',
+                                         batch_size=BATCH_SIZE,
+                                         image_size=IMAGE_SIZE,
+                                         fetch_ratio=data_ratio
+                                        )
 
     # model = initialize_baseline_model(             # Baseline model architecture
     #     input_shape=INPUT_SHAPE
     # )
-
     # model = initialize_transfer_learning_model(         # Tranfer Learning Model
     #     model_name=model_name,
     #     input_shape=INPUT_SHAPE
     # )
 
     model = initialize_custom_model(INPUT_SHAPE)
-
     model = compile_model(model=model, learning_rate=learning_rate)
 
     model, history = train_model(
@@ -107,7 +100,7 @@ def training(data_ratio: float = 0.2,
             split_ratio=data_ratio
         )
 
-        best_val_metric = np.max(history.history['val_accuracy'])
+        best_val_metric = np.max(history.history['val_f1_macro'])
 
         save_results(
             params=params,
@@ -189,7 +182,6 @@ def finetuning(model_name : str,
 
     model = compile_model(
         model=model,
-        # trainset=train_data
         learning_rate=learning_rate
     )
 
@@ -259,7 +251,7 @@ def evaluate_model(model: Model,
     return eval_score
 
 def predict_image(image_path: Path,
-                model: Model,
+                  model: Model
     ) -> str:
     """
     Predict images by inputing paths.
@@ -276,14 +268,14 @@ def predict_image(image_path: Path,
     Expected prediction time for an image (%timeit):
     30.8 ms ± 298 μs per loop (mean ± std. dev. of 7 runs, 10 loops each)
     """
-    model = load_model(model_name=MODEL_PATH)
+    model = load_tf_model(FER_MODEL)
 
     img = tf.io.read_file(str(image_path))       # img = Image.open(path).convert("RGB")
     img = tf.image.decode_image(img, channels=NB_CHANNELS)
-    img = tf.image.resize(img, size=INPUT_SHAPE)  # img = tf.convert_to_tensor(img) TODO INPUT_SHAPE
+    img = tf.image.resize(img, size=INPUT_SHAPE)
 
-    x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape (1, 48, 48, 1)
-    outputs = model(x_preprocessed)             # model.predict(X_new)
+    x_preprocessed = tf.expand_dims(input=img, axis=0) # Adding batch dimension to shape = (1, 48, 48, 1)
+    outputs = model(x_preprocessed)
     prediction_index = tf.argmax(outputs[0]).numpy()
     prediction = EMOTION_DICT[prediction_index]
     return prediction
@@ -293,7 +285,7 @@ def main():
     cTime = 0
     cap = cv2.VideoCapture(0)
     detector = FaceDetector(detect_conf=0.5)
-    model = load_model(model_name='custom_fer_model_01') # TODO Change Model name
+    model = load_model(FER_MODEL)
 
     while True:
         success, img = cap.read()
@@ -309,7 +301,7 @@ def main():
                     color=(0, 255, 0),
                     thickness=4)
 
-        img, id = detector.detect_faces(img, model)
+        img, id, preds = detector.detect_faces(img, model)
 
         if id==None:
             cv2.putText(img,
