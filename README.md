@@ -71,7 +71,6 @@ venv\Scripts\activate
 
 #### 4. Dependencies installation
 ```bash
-make install_requirements
 make installation
 ```
 
