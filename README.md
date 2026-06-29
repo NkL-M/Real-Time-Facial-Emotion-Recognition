@@ -166,11 +166,15 @@ This preprocessing ensures consistency with the training data.
 
 ### 4. ONNX Runtime Inference
 The trained model was exported to ONNX using tf2onnx, for faster inference in deployment.
+In average, exporting the TensorFlow model to ONNX allowed a 4 times speed-up in inference time
+(TF = 30.56 ms, ONNX = 7.11 ms).
+
 The detected faces are batched and passed through ONNX Runtime for efficient CPU inference.
 
 The predictions are computed every N frames (3 in this case) to reduce compute
 load while keeping the output responsive. This can be changed through the global variable
 `FRAME_PRED_STRIDE` in `params.py`.
+
 
 ### 5. Temporal Smoothing
 To further reduces flickering and improves readability, a rolling window is
