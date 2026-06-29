@@ -17,7 +17,6 @@ from pathlib import Path
 from sklearn.metrics import classification_report, confusion_matrix
 
 from emotion_recognition.src.data import load_data
-from emotion_recognition.src.registry import load_tf_model
 from emotion_recognition.params import EMOTIONS_CLASSES
 
 
@@ -86,9 +85,9 @@ def classif_report(model: Model) -> None:
     y_pred = []
 
     for images, labels in dataset:
-        logits = model(images, training=False)
+        outputs = model(images, training=False)
         y_true.extend(tf.argmax(labels, axis=1).numpy())
-        y_pred.extend(tf.argmax(logits, axis=1).numpy())
+        y_pred.extend(tf.argmax(outputs, axis=1).numpy())
 
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
@@ -119,9 +118,9 @@ def conf_matrix(model: Model, normalize: bool = True) -> None :
     y_pred = []
 
     for images, labels in dataset:
-        logits = model(images)
+        outputs = model(images, training=False)
         y_true.extend(tf.argmax(labels, axis=1).numpy())
-        y_pred.extend(tf.argmax(logits, axis=1).numpy())
+        y_pred.extend(tf.argmax(outputs, axis=1).numpy())
 
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
@@ -154,8 +153,8 @@ def conf_matrix(model: Model, normalize: bool = True) -> None :
     plt.show()
 
 
-def tf_model_avg_inference_time(model_path: Path,
-                                model_format: str = 'TF'):
+def model_avg_inference_time(model_path: Path,
+                             model_format: str = 'TF'):
     """
     Measures and prints the average inference time of a model (TensorFlow or ONNX).
 
