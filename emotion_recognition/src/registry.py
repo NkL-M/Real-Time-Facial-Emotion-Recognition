@@ -1,3 +1,11 @@
+"""
+Module for registering and loading models.
+
+This module provides functions for loading and saving tensorflow models,
+saving parameters and metrics of model training and also exporting them in
+ONNX format for faster inference.
+"""
+
 import time
 import glob
 import pickle
@@ -6,12 +14,12 @@ import tensorflow as tf
 import tf2onnx
 from colorama import Fore, Style
 from keras import models, Model
-
 from emotion_recognition.params import MODELS_REGISTRY_DIR
 
 
-def save_model(model: Model = None,
-               model_name: str = 'default-model01'
+def save_model(
+    model: Model = None,
+    model_name: str = 'default-model01'
     ) -> None:
     """
     Persist trained model locally at: MODELS_REGISTRY_DIR/saved_models/timestamp_model_name.keras
@@ -20,14 +28,14 @@ def save_model(model: Model = None,
 
     model_path = MODELS_REGISTRY_DIR/'saved_models'/f'{timestamp}_{model_name}.keras'
 
-    # Save model locally
-    model.save(model_path)
+    model.save(model_path) # Save model locally
+
     print(Fore.BLUE + f"\nModel saved locally as '{timestamp}_{model_name}.keras'" + Style.RESET_ALL)
 
-
-def save_results(params: dict,
-                 metrics: dict,
-                 model_name: str = 'default-model01'
+def save_results(
+    params: dict,
+    metrics: dict,
+    model_name: str = 'default-model01'
     ) -> None:
     """
     Persist params & metrics locally on the hard drive at:
@@ -50,9 +58,9 @@ def save_results(params: dict,
 
     print(Fore.BLUE + f"\nResults saved locally" + Style.RESET_ALL)
 
-
-def load_tf_model(model_name: str = 'default-model01',
-               latest_model: bool = True
+def load_tf_model(
+    model_name: str = 'default-model01',
+    latest_model: bool = True
     ) -> Model:
     """
     Load a saved model stored on disk
@@ -67,7 +75,7 @@ def load_tf_model(model_name: str = 'default-model01',
 
     returns
     ----
-    model: Model
+    model : Model
     """
     models_paths_match = str(MODELS_REGISTRY_DIR / 'saved_models' / f'*{model_name}*.keras')
     models_list = sorted(glob.glob(models_paths_match))
@@ -89,7 +97,6 @@ def load_tf_model(model_name: str = 'default-model01',
 
     return model
 
-
 def export_tf_to_onnx(model_name: str) -> None:
     """
     Export a Tensorflow model to the ONNX format for faster inference.
@@ -110,7 +117,7 @@ def export_tf_to_onnx(model_name: str) -> None:
         opset=13
     )
 
-    onnx_model_path = MODELS_REGISTRY_DIR / 'saved_models' / f'{model_name}_v2.onnx'
+    onnx_model_path = MODELS_REGISTRY_DIR / 'saved_models' / f'{model_name}.onnx'
 
     with open(onnx_model_path, "wb") as f:
         f.write(onnx_model_keras.SerializeToString())
