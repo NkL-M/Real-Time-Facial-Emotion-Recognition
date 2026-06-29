@@ -5,7 +5,7 @@ PROJECT_ROOT=Path(__file__).resolve().parent.parent
 DATA_DIR=PROJECT_ROOT/'data'
 MODELS_REGISTRY_DIR=PROJECT_ROOT/'models_registry'
 TF_MODEL='custom_fer_model'
-TF_MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/f'*{TF_MODEL}*.keras'
+TF_MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/f'{TF_MODEL}.keras'
 ONNX_MODEL_PATH=MODELS_REGISTRY_DIR/'saved_models'/f'{TF_MODEL}.onnx'
 
 # --- Model Training --- #

@@ -4,7 +4,7 @@
 installation:
 	@pip install -e .
 	@pip install -r requirements.txt
-	@echo "Intallation done."
+	@echo "Installation done."
 
 app_demo:
 	@echo "Running facial emotion recognition demo..."
@@ -36,7 +36,7 @@ run_local_fer:
 # tests:
 # 	@echo "🧪 Running tests with coverage..."
 # 	@pytest --cov=emotion_recognition --cov-report=term-missing --disable-warnings --maxfail=1
-# 	@echo "✨ Coverage report generated."
+# 	@echo "Coverage report generated."
 
 # --------------- #
 #     CLEANING    #

@@ -1,25 +1,20 @@
 """
 Module for training, evaluating and make predictions with models.
+
+This module provides functions for loading model achitectures, compiling, training,
+evaluating and inference.
 """
 
 import time
 from colorama import Fore, Style
 import tensorflow as tf
-from keras import Model, Sequential, layers, Input, regularizers, optimizers, losses, metrics
+from keras import Model, layers, Input, regularizers, optimizers, losses, metrics
 from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
+from emotion_recognition.params import MODELS_REGISTRY_DIR, NB_OUTPUTS
 
-# Transfer learning models
-from keras.applications.resnet import ResNet50
-from keras.applications import MobileNetV3Large, MobileNetV3Small
-from keras.applications.efficientnet import EfficientNetB0, EfficientNetB3
-
-# Project's packages
-from emotion_recognition.params import *
-from emotion_recognition.src.registry import load_tf_model
-
-#---------------------------#
-#   Models Architectures    #
-#---------------------------#
+# --------------------------- #
+#    Models Architectures     #
+# --------------------------- #
 def initialize_baseline_model(input_shape: tuple) -> Model:
     """
     Initialize a baseline model architecture.
@@ -58,12 +53,12 @@ def initialize_custom_model(input_shape: tuple) -> tf.keras.Model:
     arg
     ----
     input_shape : tuple
-        - Tensor shape
+        - A tensor for data shape inputed in model.
 
     returns
     ----
     model : tf.keras.Model
-        - Build model architecture
+        - Build custom model architecture.
     """
     reg = regularizers.l2(1e-4)
     input = Input(shape=input_shape)
@@ -133,179 +128,13 @@ def initialize_custom_model(input_shape: tuple) -> tf.keras.Model:
 
     return model
 
-#---------------------------------#
-#  Transfer Learning Architecture #
-#---------------------------------#
-def load_transfer_learning_model(model_name: str = 'resnet50',
-                                 input_shape: tuple = (112, 112, 3)
-    ) -> Model:
-    """
-    Load an already built and trained model from Tensorflow.
 
-    args
-    ----
-    tl_model_name : str
-        - 'vgg16'
-        - 'resnet'
-        - 'efficientnet'
-        - 'resnet50_vggface'
-
-    input_shape : tuple
-
-    returns
-    ----
-    model : Model
-        - Load pre-trained model.
-    """
-    if model_name == 'resnet50':
-        model = ResNet50(
-            weights='imagenet',
-            include_top=False,
-            input_shape=input_shape
-        )
-        print(Fore.GREEN + f"\nResNet50 model loaded" + Style.RESET_ALL)
-
-    elif model_name == 'mobilenet_v3_large':
-        model = MobileNetV3Large(
-            weights='imagenet',
-            include_top=False,
-            input_shape=input_shape
-        )
-        print(Fore.GREEN + f"\MobileNetV3Large model loaded" + Style.RESET_ALL)
-
-    elif model_name == 'mobilenet_v3_small':
-        model = MobileNetV3Small(
-            weights='imagenet',
-            include_top=False,
-            input_shape=input_shape
-        )
-        print(Fore.GREEN + f"\MobileNetV3Small model loaded" + Style.RESET_ALL)
-
-    elif model_name == 'efficientnet_b0':
-        model = EfficientNetB0(
-            weights='imagenet',
-            include_top=False,
-            input_shape=input_shape
-        )
-        print(Fore.GREEN + f"\nEfficientNetB0 model loaded" + Style.RESET_ALL)
-
-    elif model_name == 'resnet50_vggface_weights':
-        model = ResNet50(
-            weights='imagenet',
-            include_top=False,
-            input_shape=input_shape,
-            pooling=None
-        )
-        weights_path = MODELS_REGISTRY_DIR/'saved_weights_vggface'/'vggface2_resnet50_notop.h5'
-        model.load_weights(weights_path, by_name=True, skip_mismatch=False)
-
-        print(Fore.GREEN + f"\nResNet50 model loaded with VGGFace2 weights" + Style.RESET_ALL)
-
-    else:
-        print(Fore.RED + f"\nUnknown model name: '{model_name}'" + Style.RESET_ALL)
-
-    return model
-
-def initialize_transfer_learning_model(model_name: str = 'resnet50',
-                                       input_shape: tuple = (112, 112, 3)
-    ) -> Model:
-    """
-    Load a transfer learning model, set its parameters as non-trainable,
-    and add additional trainable dense layers at the end.
-
-    args
-    ----
-    model_name : str
-        - 'vgg16'
-        - 'resnet'
-        _ 'efficientnet'
-
-    input_shape : tuple
-
-
-    returns
-    ----
-    model : Model
-        - A fully structured transfer learning model with frozen weights on its
-          deep layers and with trainable top layers.
-    """
-    tl_model = load_transfer_learning_model(model_name=model_name,
-                                            input_shape=input_shape)
-
-    tl_model.trainable = False  # set layers to be untrainable
-
-    print(Fore.BLUE + f"\nModel's weights set to 'untrainable'" + Style.RESET_ALL)
-
-    # # Trainable top layers
-    gap_layer         = layers.GlobalAveragePooling2D()
-    dense_layer_1     = layers.Dense(512, kernel_regularizer=regularizers.l2(1e-4), activation='gelu')
-    bn_1              = layers.BatchNormalization()
-    dropout_layer_1   = layers.Dropout(rate=0.5)
-    dense_layer_2     = layers.Dense(256, kernel_regularizer=regularizers.l2(1e-4), activation='gelu')
-    bn_2              = layers.BatchNormalization()
-    dropout_layer_2   = layers.Dropout(rate=0.5)
-    output_layer      = layers.Dense(NB_OUTPUTS, activation='softmax')   # TODO raw logits, no softmax
-
-    # Model Architecture
-    model = Sequential(
-        [tl_model,
-         gap_layer,
-         dense_layer_1,
-         bn_1,
-         dropout_layer_1,
-         dense_layer_2,
-         bn_2,
-         dropout_layer_2,
-         output_layer
-        ]
-    )
-
-    print(model.summary())
-
-    return model
-
-
-#---------------------#
-#     Fine Tuning     #
-#---------------------#
-def load_model_for_finetuning(model_name: str = 'efficientnet_b0',
-                              latest_model: bool = True,
-                              unfroze_layers: int = 15
-    ) -> Model:
-    """
-    Load a model saved locally and unfrozen a selected number of layers.
-
-    args
-    ----
-    model_name : str
-        - Model's name to load from disk.
-
-    unfroze_layers : int
-        - Number of the last layers to unfroze for training.
-
-    returns
-    ----
-    model : Model
-        - Model with unfrozen layers.
-    """
-    model = load_tf_model(model_name=model_name, latest_model=latest_model)
-
-    model_backbone = model.layers[0]
-
-    layers_to_unfroze = len(model_backbone.layers) - unfroze_layers
-    for layer in model_backbone.layers[layers_to_unfroze:]:
-        layer.trainable = True
-
-    print(Fore.GREEN + f"\nModel's {unfroze_layers} last layers unfroze (out of the {len(model_backbone.layers)} layers)" + Style.RESET_ALL)
-
-    return model
-
-
-#---------------------#
-#   Model Function    #
-#---------------------#
-def compile_model(model: Model,
-                  learning_rate: float = 0.01
+# ----------------- #
+#   Model Training  #
+# ----------------- #
+def compile_model(
+    model: Model,
+    learning_rate: float = 0.01
     ) -> Model:
     """
     Compile model
@@ -353,14 +182,14 @@ def compile_model(model: Model,
     return model
 
 def train_model(
-        model : Model,
-        train_dataset: tf.data.Dataset,
-        val_dataset: tf.data.Dataset,
-        epochs: int = 10,
-        patience: int = 5,
-        checkpoint: bool = True,
-        reduce_lr: bool = True,
-        save_name: str = 'default_model01'
+    model : Model,
+    train_dataset: tf.data.Dataset,
+    val_dataset: tf.data.Dataset,
+    epochs: int = 10,
+    patience: int = 5,
+    checkpoint: bool = True,
+    reduce_lr: bool = True,
+    save_name: str = 'default_model01'
     ) -> tuple[Model, dict]:
     """
     Train model and save it locally
