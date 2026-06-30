@@ -8,15 +8,12 @@ inference, and visualization.
 """
 
 import time
-import cv2
 import numpy as np
-import tensorflow as tf
 from collections import deque, defaultdict
-
 from emotion_recognition.face_detection.facial_detection import FaceDetector
 from emotion_recognition.face_detection.inference import FERModel
-from emotion_recognition.face_detection.visuals import *
-from emotion_recognition.params import FRAME_PRED_STRIDE, CAP_RESOLUTION, EMOTIONS_CLASSES, WINDOW_LENGHT, ONNX_MODEL_PATH
+from emotion_recognition.face_detection.visuals import draw_boundingbox, draw_facial_emotion_detection
+from emotion_recognition.params import EMOTIONS_CLASSES, ONNX_MODEL_PATH, WINDOW_LENGHT, FRAME_PRED_STRIDE
 
 
 class PredictionSmoother():
@@ -58,7 +55,7 @@ class PredictionSmoother():
             - predicted_prob (float): The smoothed probability of the predicted class.
         """
         smoothed_probs = np.mean(self.probs_window, axis=0)
-        classes_prediction = {label: float(score) for label, score in zip(EMOTIONS_CLASSES, smoothed_probs)}
+        classes_prediction = {label.capitalize(): float(score) for label, score in zip(EMOTIONS_CLASSES, smoothed_probs)}
         predicted_class = max(classes_prediction, key=classes_prediction.get)
         predicted_prob = classes_prediction[predicted_class]
         return (classes_prediction, predicted_class, predicted_prob)
@@ -109,7 +106,7 @@ class FERPipeline():
         """
         inputs = []
         self.frame_count += 1
-        inference = (self.frame_count < FRAME_PRED_STRIDE or  # Predict frame 1 and 2 as the first latest preds
+        inference = (self.frame_count < FRAME_PRED_STRIDE or  # Predict frame 1 and 2 as the first preds
                      self.frame_count % FRAME_PRED_STRIDE==0) # Predict every 3 frame to reduce compute load
 
         detected_ids, bounding_boxes, detection_scores = self.detector.detect_faces(img)
@@ -121,29 +118,28 @@ class FERPipeline():
 
         if inference and inputs:
             inference_start = time.time()
-            inputs_batch = tf.stack(inputs, axis=0) # Stack faces to predict entire batch in 1 forward pass, adds batch dim in tensor shape
-            inputs_batch = np.expand_dims(np.array(inputs_batch), axis=3)
-            # probs_batch = self.fer_model.predict(inputs_batch)
-            # inputs_batch = np.stack(inputs, axis=0, dtype=np.float32)
-            # inputs_batch = np.array(inputs_batch, dtype=np.float32)
+            inputs_batch = np.stack(inputs, axis=0, dtype=np.float32) # Stack faces to predict entire batch in 1 forward pass
+            inputs_batch = np.expand_dims(inputs_batch, axis=3)
             probs_batch = self.fer_model.onnx_predict(inputs_batch)
             inference_time = (time.time() - inference_start) * 1000
 
-        for id, (face_idx, bbox, detection_score) in enumerate(zip(detected_ids, bounding_boxes, detection_scores)):
+        for face_idx, bounding_box, detection_score in zip(detected_ids, bounding_boxes, detection_scores):
             if inference and inputs:
-                self.prediction_smoother[face_idx].update(probs_batch[id])
+                self.prediction_smoother[face_idx].update(probs_batch[face_idx])
                 probs_dict, pred_class, pred_prob = self.prediction_smoother[face_idx].smoothed_prediction()
                 self.results[face_idx] = dict(face_detection_score=round(detection_score, 2),
+                                              bounding_box=bounding_box,
                                               proba_by_class=probs_dict,
                                               predicted_class=pred_class,
                                               predicted_prob=pred_prob,
                                               inference_time_ms=round(inference_time, 2))
 
+        for face_idx, bbox in enumerate(bounding_boxes):
             if self.draw:
                 img = draw_boundingbox(img, bbox)
-                if face_idx in self.results:
+                if face_idx in self.results.keys():
                     img = draw_facial_emotion_detection(img,
-                                                        id,
+                                                        face_idx,
                                                         bbox,
                                                         self.results[face_idx],
                                                         font_scale=2,
@@ -158,50 +154,3 @@ class FERPipeline():
                 del self.prediction_smoother[stale_id]
 
         return img, self.results
-
-def main():
-    """
-    Runs a real-time Facial Emotion Recognition (FER) demo using the default camera.
-
-    This function initializes a video capture device, processes each frame through
-    the FER pipeline, and displays the results in a window. Press 'Q' to quit the demo.
-    """
-    pTime = 0
-    cTime = 0
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAP_RESOLUTION[0])
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_RESOLUTION[1])
-    cap.set(cv2.CAP_PROP_FPS, 30)
-    detector = FERPipeline()
-
-    while True:
-        # t0 = time.time()
-        success, img = cap.read()
-        # t1 = time.time()
-        cTime = time.time()
-        fps = 1/(cTime-pTime)
-        pTime = cTime
-
-        img = draw_fps(img, fps, 3, 4)
-
-        # t2 = time.time()
-
-        img, results = detector.pipeline_flow(img)
-        # t3 = time.time()
-
-        cv2.imshow("Real-Time FER", img)
-        # t4 = time.time()
-
-        # print(f"Capture: {(t1-t0)*1000:.1f}ms | MediaPipe: {(t2-t1)*1000:.1f}ms | "
-        #         f"CNN: {(t3-t2)*1000:.1f}ms | Display: {(t4-t3)*1000:.1f}ms")
-
-        key = cv2.waitKey(30)
-
-        if key == ord("q"): # Press 'Q' to quit
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    main()
