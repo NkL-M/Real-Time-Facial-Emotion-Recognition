@@ -10,7 +10,7 @@ import cv2
 import mediapipe as mp
 from collections import deque, defaultdict
 from emotion_recognition.src.registry import load_tf_model
-from emotion_recognition.params import EMOTION_DICT, FRAME_PRED_STRIDE, WINDOW_LENGHT, FER_MODEL, IMAGE_SIZE, EMOTIONS_CLASSES
+from emotion_recognition.params import EMOTION_DICT, FRAME_PRED_STRIDE, WINDOW_LENGHT, TF_MODEL, IMAGE_SIZE, EMOTIONS_CLASSES
 
 
 class PredictionSmoother():
@@ -78,12 +78,10 @@ class FaceDetector():
         bounding_boxes = []
         face_crops = []
         detected_ids = set()
-        # faces_indexes = []
         inference = (self.frame_count < FRAME_PRED_STRIDE or  # Predict every 3 frame to reduce compute load
                      self.frame_count % FRAME_PRED_STRIDE==0) # Predict frame 1 and 2 as the first latest preds
 
         if self.results.detections:
-            # detected_ids = set()
             for id, detection in enumerate(self.results.detections):
                 bounding_box = detection.location_data.relative_bounding_box
 
@@ -109,7 +107,6 @@ class FaceDetector():
                 if model and inference:
                     face_crop = self.preprocess(img, coordinates, pad=30)
                     face_crops.append(face_crop)
-                    # faces_indexes.append(id)
 
             if model and inference and face_crops:
                 prediction_batch = tf.stack(face_crops, axis=0) # Stack faces to predict entire batch in 1 forward pass, adds batch dim
@@ -216,7 +213,7 @@ def main():
     cTime = 0
     cap = cv2.VideoCapture(0)
     detector = FaceDetector(detect_conf=0.5)
-    model = load_tf_model(model_name=FER_MODEL)
+    model = load_tf_model(model_name=TF_MODEL)
 
     while True:
         # t0 = time.time()
