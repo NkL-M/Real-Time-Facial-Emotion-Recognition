@@ -169,7 +169,7 @@ def draw_fps(
                 org=(10,70),
                 fontFace=cv2.FONT_HERSHEY_PLAIN,
                 fontScale=font_scale,
-                color=(0, 255, 0),
+                color=(0, 220, 0),
                 thickness=font_thickness)
 
     return img
