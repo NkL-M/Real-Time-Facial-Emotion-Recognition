@@ -1,6 +1,8 @@
 """
-Module for loading image datasets from the `data` directory and transforming into
-a tensorflow dataset ready to be fed into tf models.
+Data Manipulation Module
+
+This module provides functions for loading images from the `data` directory, do
+data augmentation, compute and apply class weights.
 """
 
 import tensorflow as tf
@@ -149,7 +151,7 @@ def data_augmentation(
     val_dataset: tf.data.Dataset
     ) -> tuple[tf.data.Dataset, tf.data.Dataset]:
     """
-    Apply data augmentation to training dataset.
+    Apply data augmentation to the training dataset.
 
     returns
     ----
@@ -214,44 +216,6 @@ def compute_class_weights(
     return class_weight_dict
 
 
-def weight_training_data(
-    train_dataset: tf.data.Dataset,
-    val_dataset: tf.data.Dataset
-    ) -> tuple[tf.data.Dataset, tf.data.Dataset]:
-    """
-
-    """
-    class_weight_dict = compute_class_weights(train_dataset)
-
-    def add_sample_weights(image, label):
-        """
-        Convert one-hot label + class_weight_dict into a per-sample weight.
-        """
-        class_idx = tf.argmax(label)
-
-        weight = tf.gather(
-            tf.constant(list(class_weight_dict.values()), dtype=tf.float32),
-            class_idx
-        )
-
-        return image, label, weight
-
-    train_ds_weighted = (train_dataset
-                         .map(add_sample_weights, num_parallel_calls=tf.data.AUTOTUNE)
-                         .batch(BATCH_SIZE)
-                         .prefetch(tf.data.AUTOTUNE)
-                        )
-
-    val_ds = (val_dataset
-              .batch(BATCH_SIZE)
-              .prefetch(tf.data.AUTOTUNE)
-            )
-
-    print(Fore.GREEN + "Class weights added to training dataset." + Style.RESET_ALL)
-
-    return (train_ds_weighted, val_ds)
-
-
 def class_weight_and_augment(
     data_ratio: float = 0.2,
     data_aug: bool = True,
@@ -284,6 +248,7 @@ def class_weight_and_augment(
                                                fetch_ratio=data_ratio,
                                                validation_split=0.2
                                             )
+        class_weight_dict = compute_class_weights(train_dataset)
 
     else:
         train_dataset, val_dataset = load_data(dataset_type='train',
@@ -292,9 +257,6 @@ def class_weight_and_augment(
                                                fetch_ratio=data_ratio,
                                                validation_split=0.2
                                             )
-
-    if class_weights:
-        class_weight_dict = compute_class_weights(train_dataset)
 
     if data_aug:
         data_augment = Sequential([
