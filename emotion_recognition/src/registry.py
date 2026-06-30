@@ -58,6 +58,41 @@ def save_results(
 
     print(Fore.BLUE + f"\nResults saved locally" + Style.RESET_ALL)
 
+def load_results(
+    model_name: str = 'custom_fer_model',
+    get_metrics: bool = True,
+    get_params: bool = True) -> dict:
+    """
+    Loads and returns saved metrics and/or saved parameters for a specified model.
+
+    This function reads pickled files containing metrics and parameters for a given model
+    and returns them in a dictionary.
+
+    Returns
+    ----
+    results : dict
+            - 'Metrics': Dictionary of model metrics (if `get_metrics=True`).
+            - 'Params': Dictionary of model parameters (if `get_params=True`).
+
+    Notes:
+        - Metrics and params are loaded from the `saved_metrics` and `saved_params`directories.
+    """
+    results = dict()
+
+    if get_metrics:
+        metrics_path = MODELS_REGISTRY_DIR/'saved_metrics'/f'metrics_{model_name}.pickle'
+        with open(metrics_path, 'rb') as file:
+            metrics = pickle.load(file)
+            results['Metrics']=metrics
+
+    if get_params:
+        params_path = MODELS_REGISTRY_DIR/'saved_params'/f'params_{model_name}.pickle'
+        with open(params_path, 'rb') as file:
+            params = pickle.load(file)
+            results['Params']=params
+
+    return results
+
 def load_tf_model(
     model_name: str = 'default-model01',
     latest_model: bool = True
