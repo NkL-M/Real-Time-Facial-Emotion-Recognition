@@ -12,7 +12,7 @@ import onnxruntime as ort
 
 from keras import Model
 from pathlib import Path
-from emotion_recognition.params import IMAGE_SIZE, ONNX_MODEL_PATH, FER_MODEL, EMOTION_DICT, EMOTIONS_CLASSES
+from emotion_recognition.params import IMAGE_SIZE, ONNX_MODEL_PATH, TF_MODEL
 from emotion_recognition.src.registry import load_tf_model
 
 class FERModel():
@@ -38,7 +38,10 @@ class FERModel():
         model_path (Path, optional): Path to the ONNX model file. Defaults
         to `ONNX_MODEL_PATH` variable from `params.py`.
         """
-        # self.tf_model = load_tf_model(model_path) TODO remove
+        # Tensorflow model instantiation
+        self.tf_model = load_tf_model(TF_MODEL)
+
+        # ONNX model instantiation
         self.session = ort.InferenceSession(model_path)
         self.input_name = self.session.get_inputs()[0].name
         self.output_name = self.session.get_outputs()[0].name
@@ -82,7 +85,7 @@ class FERModel():
 
         return input
 
-    def predict(self, inputs: np.ndarray) -> tuple:
+    def tf_predict(self, inputs: np.ndarray) -> tuple:
         """
 
         returns
@@ -97,14 +100,8 @@ class FERModel():
 
         predicted_prob : float
         """
-        # predicted_idx = np.argmax(outputs)
-        # predicted_class = EMOTION_DICT[predicted_idx]
-        # probs_dict = {label: float(score) for label, score in zip(EMOTIONS_CLASSES, probs_array[0])} # dict comprehension
-        # predicted_class = max(probs_dict, key=probs_dict.get)
-        # predicted_prob = probs_dict[predicted_class]
-        # return (probs_array, probs_dict, predicted_class, predicted_prob)
-        probabilities = self.tf_model(inputs, training=False) # Probas outputs
-        return probabilities
+        outputs = self.tf_model(inputs, training=False) # Probas outputs
+        return outputs
 
     def onnx_predict(self, inputs: np.ndarray) -> tuple:
         """
