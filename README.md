@@ -35,7 +35,7 @@ The stack integrates:
 * TensorFlow for the trained CNN architecture optimized for small grayscale inputs.
 * ONNX Runtime for more efficient inference.
 * OpenCV for the image anf video processing.
-* Streamlit for the interface for easy visualization and public demos.
+* Streamlit interface for easy an visualization and local demo.
 
 
 ## App Visuals
