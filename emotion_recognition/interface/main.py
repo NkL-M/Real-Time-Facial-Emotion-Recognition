@@ -1,13 +1,15 @@
 import cv2
+from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import onnxruntime as ort
 
-from emotion_recognition.params import *
+from emotion_recognition.params import INPUT_SHAPE, NB_CHANNELS, ONNX_MODEL_PATH
 from emotion_recognition.src.data import *
 from emotion_recognition.src.model import *
 from emotion_recognition.src.registry import save_model, save_results
 from emotion_recognition.interface.pipeline import FERPipeline
+from emotion_recognition.app.video_capture import VideoStream
 from emotion_recognition.face_detection.visuals import draw_fps
 
 def training(
@@ -193,32 +195,36 @@ def main():
     This function initializes a video capture device, processes each frame through
     the FER pipeline, and displays the results in a window. Press 'Q' to stop.
     """
-    pTime = 0
-    cTime = 0
-    cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAP_RESOLUTION[0])
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAP_RESOLUTION[1])
-    cap.set(cv2.CAP_PROP_FPS, CAP_FPS)
-    detector = FERPipeline(draw=True)
+    stream = VideoStream(camera_idx=0)
+    pipeline = FERPipeline(draw=True)
+    fps_tracker = []
 
     while True:
-        success, img = cap.read()
+        success, img = stream.read()
         cTime = time.time()
-        fps = 1/(cTime-pTime)
-        pTime = cTime
+        fps_tracker.append(cTime)
+        fps_tracker = [t for t in fps_tracker if cTime - t <= 1.0] # keep last 1 second
+        fps = len(fps_tracker)
 
         img = draw_fps(img, fps, font_scale=3, font_thickness=4)
 
-        img, results = detector.pipeline_flow(img)
+        img, results = pipeline.pipeline_flow(img)
 
         if not results:
+            cv2.rectangle(img,
+                          (1425, 70 - 50),
+                          (1450 + 455, 70 + 20),
+                          color=(0, 0, 160),
+                          thickness=-1)
+
             cv2.putText(img,
                         text="No face detected",
-                        org=(1450,70),
+                        org=(1440,70),
                         fontFace=cv2.FONT_HERSHEY_PLAIN,
                         fontScale=3,
-                        color=(0, 0, 220),
-                        thickness=3)
+                        color=(220, 220, 220),
+                        thickness=2)
+
 
         cv2.putText(img,
                     text="Press 'Q' to quit",
@@ -233,9 +239,9 @@ def main():
         key = cv2.waitKey(30)
 
         if key == ord("q"): # Press 'Q' to quit
+            stream.stop()
             break
 
-    cap.release()
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
