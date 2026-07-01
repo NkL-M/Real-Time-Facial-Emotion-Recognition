@@ -46,7 +46,7 @@ with st.sidebar:
         help="Predictions below this confidence are flagged as uncertain."
     )
     show_all_scores = st.toggle("Show all emotion scores", value=True)
-    show_fps = st.toggle("Show frame per seconds", value=False)
+    show_fps = st.toggle("Show frame rate", value=False)
     show_nb_faces = st.toggle("Show number of detected faces", value=False)
 
     st.divider()
@@ -131,7 +131,7 @@ if not stream.is_opened():
     st.session_state.running = False
     st.stop()
 
-fps_tracker = []   # rolling timestamps for FPS calculation
+fps_tracker = [] # rolling timestamps for FPS calculation
 
 while st.session_state.running:
 
@@ -225,7 +225,7 @@ while st.session_state.running:
 
                     # Horizontal bar chart with fixed scale
                     chart = alt.Chart(conf_scores).mark_bar(
-                        color="#d82b33",
+                        color="#fe4c4a",
                         width=12 # Bar width
                     ).encode(
                         y=alt.Y("Emotion"),
