@@ -1,28 +1,20 @@
 import time
 import cv2
 import streamlit as st
-# import numpy as np TODO remove
+import altair as alt
+import pandas as pd
 
 from emotion_recognition.interface.pipeline import FERPipeline
-# from emotion_recognition.params import EMOTIONS_CLASSES TODO remove
-from app.video_capture import VideoStream
+from emotion_recognition.app.video_capture import VideoStream
 
 
-
-# ── Page config ───────────────────────────────────────────────────────────────
-
+# ------------------------------- Page config -------------------------------- #
 st.set_page_config(
     page_title="Real Time Facial Emotion Recognition",
-    page_icon="🎭",
-    layout="wide",
+    layout="wide"
 )
 
-# ── Session state init ────────────────────────────────────────────────────────
-# All stateful objects live in session_state so they survive Streamlit reruns.
-# Critically: FERPipeline must persist across frames so the temporal smoother
-# retains its rolling window — recreating it every frame would silently reset
-# smoothing to nothing.
-
+# ---------------------------- Session state init ---------------------------- #
 if "pipeline" not in st.session_state:
     st.session_state.pipeline = FERPipeline(
         draw=False   # Handle drawing in this file, not inside the pipeline
@@ -37,11 +29,12 @@ if "running" not in st.session_state:
 if "fps_history" not in st.session_state:
     st.session_state.fps_history = []
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 
+# ---------------------------------- Sidebar --------------------------------- #
 with st.sidebar:
-    st.title("FER Demo")
-    st.markdown("Real-time facial emotion recognition using a custom CNN architecture and Google's MediaPipe for the face detection.")
+    st.title("Facial Emotion Recognition Demo")
+    st.markdown(
+        """Real-time facial emotion recognition (FER) using a custom Convolutionnal Neural Network architecture.""")
     st.divider()
 
     st.subheader("Controls")
@@ -53,45 +46,53 @@ with st.sidebar:
         help="Predictions below this confidence are flagged as uncertain."
     )
     show_all_scores = st.toggle("Show all emotion scores", value=True)
-    show_timing = st.toggle("Show timing breakdown", value=False)
+    show_fps = st.toggle("Show frame per seconds", value=False)
+    show_nb_faces = st.toggle("Show number of detected faces", value=False)
 
     st.divider()
+
     st.subheader("Model")
-    st.caption("Custom CNN · ONNX INT8 · MediaPipe face detection · Temporal smoothing (EMA α=0.3)")
+    st.caption("Custom CNN · ONNX · MediaPipe face detection")
 
-# ── Layout ────────────────────────────────────────────────────────────────────
 
-st.title("Facial Emotion Recognition")
+# ----------------------------------- Layout --------------------------------- #
+frame_column, stats_column = st.columns([3, 1], gap="small")
 
-col_feed, col_stats = st.columns([2, 1], gap="large")
+with frame_column:
+    button_col1, button_col2 = st.columns(2)
 
-with col_feed:
-    btn_col1, btn_col2 = st.columns(2)
-    with btn_col1:
-        start_btn = st.button("▶ Start", width='stretch', type="primary",       # TODO use_container_width=True
+    with button_col1:
+        start_button = st.button("▶ Start", width='stretch', type="primary",
                                disabled=st.session_state.running)
-    with btn_col2:
-        stop_btn = st.button("⏹ Stop", width='stretch',                         # TODO use_container_width=True
+    with button_col2:
+        stop_button = st.button("⏹ Stop", width='stretch',
                               disabled=not st.session_state.running)
 
     frame_placeholder = st.empty()
     status_placeholder = st.empty()
 
-with col_stats:
+    fps_col, nb_face_col = st.columns(2, gap="small")
+
+    with fps_col:
+        fps_placeholder = st.empty()
+
+    with nb_face_col:
+        nb_faces_placeholder = st.empty()
+
+
+with stats_column:
     st.subheader("Detected emotions")
     emotion_placeholder = st.empty()
     st.divider()
-    fps_placeholder = st.empty()
-    timing_placeholder = st.empty()
 
-# ── Button handlers ───────────────────────────────────────────────────────────
 
-if start_btn:
+# ----------------------------- Button handlers ------------------------------ #
+if start_button:
     st.session_state.running = True
-    st.session_state.stream = VideoStream(src=camera_index)
+    st.session_state.stream = VideoStream(camera_index)
     st.rerun()
 
-if stop_btn:
+if stop_button:
     st.session_state.running = False
     if st.session_state.stream is not None:
         st.session_state.stream.stop()
@@ -100,8 +101,7 @@ if stop_btn:
     status_placeholder.info("Stream stopped.")
     st.rerun()
 
-# ── Idle state ────────────────────────────────────────────────────────────────
-
+# ------------------------------ Idle state ---------------------------------- #
 if not st.session_state.running:
     frame_placeholder.markdown(
         """
@@ -122,8 +122,7 @@ if not st.session_state.running:
     )
     st.stop()
 
-# ── Live loop ─────────────────────────────────────────────────────────────────
-
+# ------------------------------- Live loop ---------------------------------- #
 stream: VideoStream = st.session_state.stream
 pipeline: FERPipeline = st.session_state.pipeline
 
@@ -135,21 +134,18 @@ if not stream.is_opened():
 fps_tracker = []   # rolling timestamps for FPS calculation
 
 while st.session_state.running:
-    # ── Capture ──────────────────────────────────────────────────────────────
-    t0 = time.time()
+
+    # ------------------------------ Capture --------------------------------- #
     ret, frame = stream.read()
-    t1 = time.time()
 
     if not ret or frame is None:
         status_placeholder.warning("Frame not available — retrying...")
         time.sleep(0.05)
         continue
 
-    # ── Inference ─────────────────────────────────────────────────────────────
+    # ----------------------------- Inference -------------------------------- #
     _, results = pipeline.pipeline_flow(frame)
-    t2 = time.time()
 
-    # ── Draw bounding boxes with current frame coords ─────────────────────────
     img = frame.copy()
     for face_id, data in results.items():
         bbox = data["bounding_box"]
@@ -159,56 +155,52 @@ while st.session_state.running:
 
         x, y, w, h = bbox
         x1, y1 = x + w, y + h
-        thickness = 1
-        length = 30
+        thickness = 2
+        length = 40
 
-        color = (255, 255, 255) if is_confident else (0, 200, 220)   # green / yellow
-        cv2.rectangle(
-            img,
-            (x, y),
-            (x + w, y + h),
-            color, thickness
-        )
+        color = (255, 255, 255) if is_confident else (0, 200, 220)   # white (certain) / yellow (uncertain)
+
+        cv2.rectangle(img, (x, y), (x + w, y + h), color, thickness) # Bounding Box
+
+        corners_colors = (255, 0, 255) if is_confident else (0, 0, 220) # purple (certain) / red (uncertain)
 
         # Top left corner
-        cv2.line(img, (x, y), (x+length, y), (255, 0, 255), thickness*2)
-        cv2.line(img, (x, y), (x, y+length), (255, 0, 255), thickness*2)
+        cv2.line(img, (x, y), (x+length, y), corners_colors, thickness*2)
+        cv2.line(img, (x, y), (x, y+length), corners_colors, thickness*2)
 
         # Top right corner
-        cv2.line(img, (x1, y), (x1-length, y), (255, 0, 255), thickness*2)
-        cv2.line(img, (x1, y), (x1, y+length), (255, 0, 255), thickness*2)
+        cv2.line(img, (x1, y), (x1-length, y), corners_colors, thickness*2)
+        cv2.line(img, (x1, y), (x1, y+length), corners_colors, thickness*2)
 
         # Bottom left corner
-        cv2.line(img, (x, y1), (x, y1-length), (255, 0, 255), thickness*2)
-        cv2.line(img, (x, y1), (x+length, y1), (255, 0, 255), thickness*2)
+        cv2.line(img, (x, y1), (x, y1-length), corners_colors, thickness*2)
+        cv2.line(img, (x, y1), (x+length, y1), corners_colors, thickness*2)
 
         # Bottom right corner
-        cv2.line(img, (x1, y1), (x1, y1-length), (255, 0, 255), thickness*2)
-        cv2.line(img, (x1, y1), (x1-length, y1), (255, 0, 255), thickness*2)
+        cv2.line(img, (x1, y1), (x1, y1-length), corners_colors, thickness*2)
+        cv2.line(img, (x1, y1), (x1-length, y1), corners_colors, thickness*2)
 
 
-        label = f"{pred_class.capitalize()} ({pred_prob:.0%})" if is_confident else f"? {pred_class} {pred_prob:.0%}"
+        label = f"Face {face_id+1}: {pred_class} ({pred_prob:.0%})"
+
         cv2.putText(img,
                     label,
-                    (x, max(y - 10, 15)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, thickness)
+                    (x, max(y - 20, 15)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, thickness) #0.65
 
-    t3 = time.time()
 
-    # ── Display frame ─────────────────────────────────────────────────────────
+    # --------------------------- Display frame ------------------------------ #
     frame_placeholder.image(
         cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
-        width='stretch'                                                         # TODO use_container_width=True
-    )
-    t4 = time.time()
+        width='stretch')
 
-    # ── FPS ───────────────────────────────────────────────────────────────────
+    # -------------------------------- FPS ----------------------------------- #
     now = time.time()
     fps_tracker.append(now)
-    fps_tracker = [t for t in fps_tracker if now - t <= 1.0]   # keep last 1 second
+    fps_tracker = [t for t in fps_tracker if now - t <= 1.0] # keep last 1 second
     current_fps = len(fps_tracker)
 
-    # ── Stats panel ───────────────────────────────────────────────────────────
+    # ---------------------------- Stats panel ------------------------------- #
     if results:
         with emotion_placeholder.container():
             for face_id, data in results.items():
@@ -217,36 +209,48 @@ while st.session_state.running:
                 is_confident = pred_prob >= confidence_threshold
 
                 if is_confident:
-                    st.success(f"**{pred_class}** — {pred_prob:.0%} confidence")
+                    st.success(f"**Face {face_id+1}: {pred_class}** ({pred_prob:.0%})")
                 else:
-                    st.warning(f"⚠️ Uncertain — closest: **{pred_class}** ({pred_prob:.0%})")
+                    st.warning(f"⚠️ [Uncertain] **Face {face_id+1}: {pred_class}** ({pred_prob:.0%})")
 
                 if show_all_scores:
-                    scores = data["proba_by_class"]
+                    confidences = data["proba_by_class"]
 
                     # Sort by score descending for readability
                     sorted_scores = dict(
-                        sorted(scores.items(), key=lambda x: x[1], reverse=True)
+                        sorted(confidences.items(), key=lambda x: x[1], reverse=True)
                     )
-                    st.bar_chart(sorted_scores, height=180)
+
+                    conf_scores = pd.DataFrame(list(sorted_scores.items()), columns=["Emotion", "Confidence"])
+
+                    # Horizontal bar chart with fixed scale
+                    chart = alt.Chart(conf_scores).mark_bar(
+                        color="#d82b33",
+                        width=12 # Bar width
+                    ).encode(
+                        y=alt.Y("Emotion"),
+                        x=alt.X("Confidence", scale=alt.Scale(domain=[0, 1])),  # Fixed x-axis scale
+                    ).properties(
+                        width=300, # Chart width
+                        height=200, # Chart height
+                        padding={"left": 0, "top": 0, "right": 30, "bottom": 0},  # Compact padding
+                    ).configure_axis(
+                        labelFontSize=13,  # Smaller axis labels
+                        titleFontSize=13,
+                    )
+
+                    st.altair_chart(chart, width='content')
+
+                    # TODO make chart for faces that leaves frame disapear
 
     else:
-        emotion_placeholder.error(body="No face detected",
-                                  icon="❌")
+        emotion_placeholder.error(body="No face detected", icon="❌")
 
-    with fps_placeholder.container():
-        st.metric("FPS", current_fps)
+    if show_nb_faces:
+        with nb_faces_placeholder.container():
+            st.container(border=True).metric("Number of detected faces", face_id+1)
 
-    if show_timing:
-        with timing_placeholder.container():
-            st.caption("Timing breakdown (ms)")
-            st.markdown(
-               f"""
-                |   Stage    |             Time            |
-                |------------|-----------------------------|
-                | Capture    | `{(t1 - t0) * 1000:.1f} ms` |
-                | Inference  | `{(t2 - t1) * 1000:.1f} ms` |
-                | Draw       | `{(t3 - t2) * 1000:.1f} ms` |
-                | Display    | `{(t4 - t3) * 1000:.1f} ms` |
-                """
-            )
+
+    if show_fps:
+        with fps_placeholder.container():
+            st.container(border=True).metric("FPS", current_fps)
