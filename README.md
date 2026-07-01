@@ -40,7 +40,7 @@ The stack integrates:
 
 ## App Visuals
 
-[PUT IMAGES HERE]
+![app_demo_idle](images/app_demo/app_demo_idle.png)
 
 ## Installation and Usage
 
