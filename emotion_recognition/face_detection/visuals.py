@@ -139,8 +139,8 @@ def draw_facial_emotion_detection(
 def draw_fps(
     img: np.ndarray,
     fps: str,
-    font_scale: int = 3,
-    font_thickness: int = 4
+    font_scale: int = 2,
+    font_thickness: int = 3
     ) -> np.ndarray:
     """
     Draws the FPS value on an image using OpenCV.
@@ -164,12 +164,18 @@ def draw_fps(
     img : np.ndarray
         - The image with the FPS value drawn on it.
     """
+    cv2.rectangle(img,
+                  (20, 20),
+                  (20 + 210, 85),
+                  color=(80, 180, 0),
+                  thickness=-1)
+
     cv2.putText(img=img,
                 text=f"{str(int(fps))} FPS",
-                org=(10,70),
+                org=(40,70),
                 fontFace=cv2.FONT_HERSHEY_PLAIN,
                 fontScale=font_scale,
-                color=(0, 220, 0),
-                thickness=font_thickness)
+                color=(220, 220, 220),
+                thickness=2)
 
     return img
