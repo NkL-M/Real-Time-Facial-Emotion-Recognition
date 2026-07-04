@@ -164,7 +164,7 @@ flowchart TB
   P1 --> P2["Single or Multiple
   Face Crop(s)"]
   P2 --> PRE
-  subgraph PRE["Preprocessing Pipeline"]
+  subgraph PRE[Preprocessing Pipeline]
   direction TB
   P4["Resize 48×48"]
   P4 --> P5["Grayscale"]
@@ -179,14 +179,14 @@ style P6 stroke:#5b2a74, color:#ffffff
   (ONNX Runtime)"]
   P7 --> P8["Temporal Smoothing
   (Deque Rolling Window)"]
-  P8 --> E["Emotion Classification"]
-  E --> N["Neutral"]
-  E --> H["Happy"]
-  E --> A["Angry"]
-  E --> S["Sad"]
-  E --> F["Fear"]
-  E --> D["Disgust"]
-  E --> SU["Surprise"]
+  P8 --> E[Emotion Classification]
+  E -.-> N(["Neutral"])
+  E -.-> H(["Happy"])
+  E -.-> A(["Angry"])
+  E -.-> S(["Sad"])
+  E -.-> F(["Fear"])
+  E -.-> D(["Disgust"])
+  E -.-> SU(["Surprise"])
 
 style N stroke:#145288, color:#ffffff
 style H stroke:#145288, color:#ffffff
