@@ -144,15 +144,17 @@ The dataset was split as followed:
 To do this project, I followed a pragmatic, end‑to‑end approach to build a real‑time
 facial emotion recognition system that is fast, lightweight, and reliable.
 
+
+
+
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{
-  'background':'#1e1e1e',          /* Dark charcoal */
   'primaryColor':'#2c2c2c',
-  'primaryTextColor':'#e0f7fa',
-  'primaryBorderColor':'#00bcd4',
-  'lineColor':'#26c6da',
+  'primaryTextColor':'#fdfdfd',
+  'primaryBorderColor':'#1e88e5',
+  'lineColor':'#1e88e5',
   'fontFamily':'JetBrains Mono',
-  'fontSize':'12px'
+  'fontSize':'13px'
 }}}%%
 flowchart TB
   P0["Real-Time Camera Feed
