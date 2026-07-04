@@ -163,13 +163,13 @@ flowchart TB
   P2 --> PRE
   subgraph PRE["Preprocessing Pipeline"]
   direction TB
-    P4["Resize 48×48"]
-    P4 --> P5["Grayscale"]
-    P5 --> P6["Normalization"]
+  P4["Resize 48×48"]
+  P4 --> P5["Grayscale"]
+  P5 --> P6["Normalization"]
 end
-  style P4 stroke:#1e6a22, color:#ffffff
-  style P5 stroke:#a8551e, color:#ffffff
-  style P6 stroke:#5b2a74, color:#ffffff
+style P4 stroke:#1e6a22, color:#ffffff
+style P5 stroke:#a8551e, color:#ffffff
+style P6 stroke:#5b2a74, color:#ffffff
 
   P6 --> P7["Model Inference
   (ONNX Runtime)"]
