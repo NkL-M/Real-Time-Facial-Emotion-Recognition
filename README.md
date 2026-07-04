@@ -186,8 +186,6 @@ direction LR
     F["Fear"]
     D["Disgust"]
     SU["Surprise"]
-end
-
 E --> N
 E --> H
 E --> A
@@ -195,6 +193,7 @@ E --> S
 E --> F
 E --> D
 E --> SU
+end
 
 style N stroke:#1e88e5, color:#ffffff
 style H stroke:#1e88e5, color:#ffffff
