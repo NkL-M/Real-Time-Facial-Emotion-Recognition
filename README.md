@@ -175,26 +175,14 @@ end
   (ONNX Runtime)"]
   P7 --> P8["Temporal Smoothing
   (Deque Rolling Window)"]
-  P8["Temporal Smoothing"] --> E["Emotion Classification"]
-
-subgraph .
-direction LR
-    N["Neutral"]
-    H["Happy"]
-    A["Angry"]
-    S["Sad"]
-    F["Fear"]
-    D["Disgust"]
-    SU["Surprise"]
-end
-
-E --> N
-E --> H
-E --> A
-E --> S
-E --> F
-E --> D
-E --> SU
+  P8 --> E["Emotion Classification"]
+  E --> N["Neutral"]
+  E --> H["Happy"]
+  E --> A["Angry"]
+  E --> S["Sad"]
+  E --> F["Fear"]
+  E --> D["Disgust"]
+  E --> SU["Surprise"]
 
 style N stroke:#1e88e5, color:#ffffff
 style H stroke:#1e88e5, color:#ffffff
