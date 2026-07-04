@@ -156,22 +156,53 @@ facial emotion recognition system that is fast, lightweight, and reliable.
 flowchart TB
   P0["Real-Time Camera Feed
   (OpenCV)"]
-  P0 --> P1["Face Detection (MediaPipe)"]
-  P1 --> P2["Single or Multiple Face Crop(s)"]
-  P2 --> P3["Preprocessing
-  (48×48 pixels, Grayscale, Normalization)"]
-  P3 --> P4["Model Inference
+  P0 --> P1["Face Detection
+  (MediaPipe)"]
+  P1 --> P2["Single or Multiple
+  Face Crop(s)"]
+  P2 --> PRE
+  subgraph PRE["Preprocessing Pipeline"]
+  direction TB
+    P4["Resize 48×48"]
+    P4 --> P5["Grayscale"]
+    P5 --> P6["Normalization"]
+end
+  style P4 stroke:#1e6a22, color:#ffffff
+  style P5 stroke:#a8551e, color:#ffffff
+  style P6 stroke:#5b2a74, color:#ffffff
+
+  P6 --> P7["Model Inference
   (ONNX Runtime)"]
-  P4 --> P5["Temporal Smoothing
+  P7 --> P8["Temporal Smoothing
   (Deque Rolling Window)"]
-  P5 --> P6["Emotion Classification"]
-  P6 --> P7["Neutral"]
-  P6 --> P8["Happy"]
-  P6 --> P9["Angry"]
-  P6 --> P10["Sad"]
-  P6 --> P11["Fear"]
-  P6 --> P12["Disgust"]
-  P6 --> P13["Surprise"]
+  P8["Temporal Smoothing"] --> E["Emotion Classification"]
+
+subgraph .
+direction LR
+    N["Neutral"]
+    H["Happy"]
+    A["Angry"]
+    S["Sad"]
+    F["Fear"]
+    D["Disgust"]
+    SU["Surprise"]
+end
+
+E --> N
+E --> H
+E --> A
+E --> S
+E --> F
+E --> D
+E --> SU
+
+style N stroke:#1e88e5, color:#ffffff
+style H stroke:#1e88e5, color:#ffffff
+style A stroke:#1e88e5, color:#ffffff
+style S stroke:#1e88e5, color:#ffffff
+style F stroke:#1e88e5, color:#ffffff
+style D stroke:#1e88e5, color:#ffffff
+style SU stroke:#1e88e5, color:#ffffff
 ```
 
 ### 1. Model Training
