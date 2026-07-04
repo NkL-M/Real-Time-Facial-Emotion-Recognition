@@ -175,7 +175,7 @@ end
   (ONNX Runtime)"]
   P7 --> P8["Temporal Smoothing
   (Deque Rolling Window)"]
-  P8["Temporal Smoothing"] --> E["Emotion Classification"]
+  P8 --> E["Emotion Classification"]
 
 subgraph .
 direction LR
