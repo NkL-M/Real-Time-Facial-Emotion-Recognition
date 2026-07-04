@@ -146,20 +146,24 @@ facial emotion recognition system that is fast, lightweight, and reliable.
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{
-  'primaryColor':'#1a1a1a',
+  'primaryColor':'#202020',
   'primaryTextColor':'#ffffff',
-  'primaryBorderColor':'#f76c6c',
-  'lineColor':'#f76c6c',
+  'primaryBorderColor':'#f98282',
+  'lineColor':'#f98282',
   'fontFamily':'JetBrains Mono',
   'fontSize':'12px'
 }}}%%
 flowchart TB
-  P0["Real-Time Camera Feed (OpenCV)"]
-  P0 --> P1["Face Detection (MediaPipe BlazeFace)"]
-  P1 --> P2["Face Crops"]
-  P2 --> P3["Preprocessing (48×48, grayscale, normalization)"]
-  P3 --> P4["Model Inference (ONNX Runtime)"]
-  P4 --> P5["Temporal Smoothing (Rolling Window)"]
+  P0["Real-Time Camera Feed
+  (OpenCV)"]
+  P0 --> P1["Face Detection (MediaPipe)"]
+  P1 --> P2["Single or Multiple Face Crop(s)"]
+  P2 --> P3["Preprocessing
+  (48×48 pixels, Grayscale, Normalization)"]
+  P3 --> P4["Model Inference
+  (ONNX Runtime)"]
+  P4 --> P5["Temporal Smoothing
+  (Deque Rolling Window)"]
   P5 --> P6["Emotion Classification"]
   P6 --> P7["Neutral"]
   P6 --> P8["Happy"]
