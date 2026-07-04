@@ -144,6 +144,32 @@ The dataset was split as followed:
 To do this project, I followed a pragmatic, end‑to‑end approach to build a real‑time
 facial emotion recognition system that is fast, lightweight, and reliable.
 
+```mermaid
+%%{init: {'theme':'base','themeVariables':{
+  'primaryColor':'#1a1a1a',
+  'primaryTextColor':'#ffffff',
+  'primaryBorderColor':'#f76c6c',
+  'lineColor':'#f76c6c',
+  'fontFamily':'JetBrains Mono',
+  'fontSize':'12px'
+}}}%%
+flowchart TB
+  P0["Real-Time Camera Feed (OpenCV)"]
+  P0 --> P1["Face Detection (MediaPipe BlazeFace)"]
+  P1 --> P2["Face Crops"]
+  P2 --> P3["Preprocessing (48×48, grayscale, normalization)"]
+  P3 --> P4["Model Inference (ONNX Runtime)"]
+  P4 --> P5["Temporal Smoothing (Rolling Window)"]
+  P5 --> P6["Emotion Classification"]
+  P6 --> P7["Neutral"]
+  P6 --> P8["Happy"]
+  P6 --> P9["Angry"]
+  P6 --> P10["Sad"]
+  P6 --> P11["Fear"]
+  P6 --> P12["Disgust"]
+  P6 --> P13["Surprise"]
+```
+
 ### 1. Model Training
 A custom CNN was trained using TensorFlow/Keras and Google Colab.
 The architecture is intentionally lightweight to ensure real‑time inference
