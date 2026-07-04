@@ -144,15 +144,17 @@ The dataset was split as followed:
 To do this project, I followed a pragmatic, end‑to‑end approach to build a real‑time
 facial emotion recognition system that is fast, lightweight, and reliable.
 
+
+
+
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{
-  'background':'#1e1e1e',
-  'primaryColor':'#202020',
+  'primaryColor':'#0b0c26',
   'primaryTextColor':'#ffffff',
-  'primaryBorderColor':'#f98282',
-  'lineColor':'#f98282',
+  'primaryBorderColor':'#145288',
+  'lineColor':'#145288',
   'fontFamily':'JetBrains Mono',
-  'fontSize':'12px'
+  'fontSize':'13px'
 }}}%%
 flowchart TB
   P0["Real-Time Camera Feed
@@ -168,6 +170,7 @@ flowchart TB
   P4 --> P5["Grayscale"]
   P5 --> P6["Normalization"]
 end
+style PRE fill:#353535
 style P4 stroke:#1e6a22, color:#ffffff
 style P5 stroke:#a8551e, color:#ffffff
 style P6 stroke:#5b2a74, color:#ffffff
@@ -185,13 +188,13 @@ style P6 stroke:#5b2a74, color:#ffffff
   E --> D["Disgust"]
   E --> SU["Surprise"]
 
-style N stroke:#1e88e5, color:#ffffff
-style H stroke:#1e88e5, color:#ffffff
-style A stroke:#1e88e5, color:#ffffff
-style S stroke:#1e88e5, color:#ffffff
-style F stroke:#1e88e5, color:#ffffff
-style D stroke:#1e88e5, color:#ffffff
-style SU stroke:#1e88e5, color:#ffffff
+style N stroke:#145288, color:#ffffff
+style H stroke:#145288, color:#ffffff
+style A stroke:#145288, color:#ffffff
+style S stroke:#145288, color:#ffffff
+style F stroke:#145288, color:#ffffff
+style D stroke:#145288, color:#ffffff
+style SU stroke:#145288, color:#ffffff
 ```
 
 ### 1. Model Training
