@@ -146,6 +146,7 @@ facial emotion recognition system that is fast, lightweight, and reliable.
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{
+  'background':'#1e1e1e',
   'primaryColor':'#202020',
   'primaryTextColor':'#ffffff',
   'primaryBorderColor':'#f98282',
